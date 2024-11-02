@@ -1,0 +1,56 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.22;
+
+import {ILocker} from "./interfaces/ILocker.sol";
+import {Ownable} from "../../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
+
+abstract contract AbstractLocker is ILocker, Ownable {
+    // Note : add skim function
+    /* //////////////////////////////////////////////////////////////
+                                STORAGE
+    ////////////////////////////////////////////////////////////// */
+
+    uint256 public totalSupply;
+
+    /* //////////////////////////////////////////////////////////////
+                                EVENTS
+    ////////////////////////////////////////////////////////////// */
+
+    event Deposited(uint256 amount);
+    event FeesCollected(uint256 amount);
+    event Withdrawed(uint256 amount);
+
+    /* //////////////////////////////////////////////////////////////
+                                ERRORS
+    ////////////////////////////////////////////////////////////// */
+
+    /* //////////////////////////////////////////////////////////////
+                            CONSTRUCTOR
+    ////////////////////////////////////////////////////////////// */
+
+    constructor(address eurB) Ownable(eurB) {}
+
+    /* //////////////////////////////////////////////////////////////
+                        ASSET MANAGEMENT
+    ////////////////////////////////////////////////////////////// */
+
+    function getTotalValue() external view virtual returns (uint256 value) {}
+
+    /* //////////////////////////////////////////////////////////////
+                         DEPOSIT / WITHDRAW
+    ////////////////////////////////////////////////////////////// */
+
+    function deposit(uint256 amount) external virtual onlyOwner {}
+
+    function withdraw(uint256 amount) external virtual onlyOwner {}
+
+    function fullWithdraw() external virtual onlyOwner {}
+
+    /* //////////////////////////////////////////////////////////////
+                         FEES MANAGEMENT
+    ////////////////////////////////////////////////////////////// */
+
+    function collectFees() external virtual returns (uint256 fees) {}
+
+    function compoundFees() external virtual {}
+}

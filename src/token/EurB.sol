@@ -78,27 +78,27 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
      * @notice This function will check for a receiving Safe if it has the commission module active.
      * If this is the case, we get the commissionned addresses and rates from the commission module and do the appropriate transfers.
      * @param commissionModule The address of the Commission Module.
-     * @param commissioner The address receiving a token transfer and potentially having to pay a commission.
-     * @param amount The full amount of the previous transfer to "commissioner".
+     * @param commissioned The address receiving a token transfer and potentially having to pay a commission.
+     * @param amount The full amount of the previous transfer to "commissioned".
      * @param depth Tracks the number of recursive calls to _processCommissions, will revert after MAX_COMMISSIONS_DEPTH.
      */
-    function _processCommissions(address commissionModule, address commissioner, uint256 amount, uint256 depth)
+    function _processCommissions(address commissionModule, address commissioned, uint256 amount, uint256 depth)
         internal
     {
         if (depth > MAX_COMMISSIONS_DEPTH) revert MaxCommissionsDepth();
 
-        // If CommissionHookModule is enabled on potential commissioner (receiver of last token transfer),
+        // If CommissionHookModule is enabled on potential commissioned address(receiver of last token transfer),
         // get recipients and rates and transfer corresponding amount from receiver to commission beneficiary.
         // Todo: validate no malicious contract that could return true for isModuleEnabled and where getCommissionInfo would not fail.
-        try ISafe(commissioner).isModuleEnabled(commissionModule) returns (bool enabled) {
+        try ISafe(commissioned).isModuleEnabled(commissionModule) returns (bool enabled) {
             if (enabled == true) {
                 (address[] memory recipients, uint256[] memory rates) =
-                    ICommissionModule(commissionModule).getCommissionInfo(commissioner);
+                    ICommissionModule(commissionModule).getCommissionInfo(commissioned);
                 for (uint256 i; i < recipients.length; ++i) {
                     uint256 commission = amount.mulDivDown(rates[i], BIPS);
                     // Do the transfer of the commission.
-                    _transfer(commissioner, recipients[i], commission);
-                    // The recipient becomes the potential commissioner now.
+                    _transfer(commissioned, recipients[i], commission);
+                    // The recipient becomes the potential commissioned now.
                     _processCommissions(commissionModule, recipients[i], commission, depth + 1);
                 }
             }

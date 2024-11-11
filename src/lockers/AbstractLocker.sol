@@ -50,7 +50,7 @@ abstract contract AbstractLocker is ILocker, Ownable {
                          FEES MANAGEMENT
     ////////////////////////////////////////////////////////////// */
 
-    function collectFees() external virtual returns (uint256 fees) {}
+    function collectYield() external virtual returns (uint256 yield) {}
 
     function compoundFees() external virtual {}
 }

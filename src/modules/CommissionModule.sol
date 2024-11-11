@@ -76,6 +76,7 @@ contract CommissionModule is Ownable {
         commissionGroupInfo[commissionGroupId] = info;
     }
 
+    // Note : add a batch function.
     function setCommissionedInfo(address commissioned, uint128 groupId_, uint128 validUntil_) external onlyOwner {
         CommissionedInfo memory info = CommissionedInfo({groupId: groupId_, validUntil: validUntil_});
 

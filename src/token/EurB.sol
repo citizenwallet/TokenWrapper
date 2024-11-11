@@ -8,17 +8,25 @@ import {ICardFactory} from "./interfaces/ICardFactory.sol";
 import {ICommissionModule} from "./interfaces/ICommissionModule.sol";
 import {IERC20} from "../../lib/openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {ISafe} from "./interfaces/ISafe.sol";
+import {ILocker} from "../lockers/interfaces/ILocker.sol";
 import {Ownable} from "../../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 import {Storage} from "./Storage.sol";
 
 contract EurB is ERC20Wrapper, Ownable, Storage {
     using FixedPointMathLib for uint256;
 
+    // note : yield
+
     /* //////////////////////////////////////////////////////////////
                                 ERRORS
     ////////////////////////////////////////////////////////////// */
 
+    error LengthMismatch();
     error MaxCommissionsDepth();
+    error MaxRatio();
+    error MaxYieldLockers();
+    error TimeNotElapsed();
+    error WeightsNotValid();
 
     /* //////////////////////////////////////////////////////////////
                                 EVENTS
@@ -42,18 +50,10 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
     }
 
     /* //////////////////////////////////////////////////////////////
-                                LOGIC
+                         ERC20 LOGIC
     ////////////////////////////////////////////////////////////// */
 
     // Note: overwrite depositFor function and add a syncInterest/collateral
-
-    /**
-     * @notice Will set a new treasury.
-     * @param treasury_ The new treasury address.
-     */
-    function setTreasury(address treasury_) external onlyOwner {
-        treasury = treasury_;
-    }
 
     /**
      * @notice Moves an amount of tokens from the caller's account to "to".
@@ -73,6 +73,10 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
 
         return true;
     }
+
+    /* //////////////////////////////////////////////////////////////
+                         COMMISSION LOGIC
+    ////////////////////////////////////////////////////////////// */
 
     /**
      * @notice This function will check for a receiving Safe if it has the commission module active.
@@ -103,5 +107,104 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
                 }
             }
         } catch {}
+    }
+
+    /* //////////////////////////////////////////////////////////////
+                         YIELD LOCKERS LOGIC
+    ////////////////////////////////////////////////////////////// */
+
+    function syncAll() external {
+        if (block.timestamp < lastSyncTime + 1 days) revert TimeNotElapsed();
+
+        // Cache values.
+        uint256 BIPS_ = BIPS;
+        address[] memory lockers = yieldLockers;
+        uint256[] memory weights = lockersWeights;
+        address underlying_ = address(underlying());
+
+        uint256 totalInvested;
+        uint256[] memory lockerBalances = new uint256[](weights.length);
+        // We use weights.length as those should always sum to BIPS (see setWeights()).
+        for (uint256 i; i < weights.length; ++i) {
+            lockerBalances[i] = ILocker(lockers[i]).totalSupply();
+            totalInvested += lockerBalances[i];
+        }
+
+        // Check if current idle balance meets target idle balance.
+        uint256 currentIdle = IERC20(underlying_).balanceOf(address(this));
+        uint256 targetIdle = totalSupply() - totalInvested;
+
+        // If not, withdraw from lockers according to weigths.
+        if (currentIdle < targetIdle) {
+            uint256 toWithdraw = targetIdle - currentIdle;
+
+            // Withdraw from lockers according to weights to meet idle requirement.
+            for (uint256 i; i < weights.length; i++) {
+                uint256 proportionalAmount = toWithdraw.mulDivDown(weights[i], BIPS_);
+                // If locker has not enough balance, withdraw max possible.
+                lockerBalances[i] >= proportionalAmount
+                    ? ILocker(lockers[i]).withdraw(proportionalAmount)
+                    : ILocker(lockers[i]).withdraw(lockerBalances[i]);
+            }
+        }
+
+        // Get total amount that should be deposited in lockers (non-idle).
+        // Note : adapt formula for private locker that will have impact on total invested.
+        // Note : check if ok to keep same totalSupply here (think should be ok)
+        uint256 totalToInvest = totalSupply().mulDivDown(BIPS_ - idleRatio, BIPS_);
+
+        // We use weights.length as those should always sum to BIPS (see setWeights()).
+        for (uint256 i; i < weights.length; ++i) {
+            uint256 targetBalance = totalToInvest.mulDivDown(weights[i], BIPS_);
+            uint256 currentBalance = ILocker(lockers[i]).totalSupply();
+
+            if (currentBalance < targetBalance) {
+                // Note : use batchApprove.
+                uint256 toDeposit = targetBalance - currentBalance;
+                IERC20(underlying_).approve(lockers[i], toDeposit);
+                // Don't revert if the call fails, continue.
+                try ILocker(lockers[i]).deposit(toDeposit) {}
+                catch {
+                    continue;
+                }
+            } else if (currentBalance > targetBalance) {
+                uint256 toWithdraw = currentBalance - targetBalance;
+                // Don't revert if the call fails, continue.
+                try ILocker(lockers[i]).withdraw(toWithdraw) {} catch {}
+            }
+        }
+    }
+
+    function collectYield() external {}
+
+    /**
+     * @notice Will set a new treasury.
+     * @param treasury_ The new treasury address.
+     */
+    function setTreasury(address treasury_) external onlyOwner {
+        treasury = treasury_;
+    }
+
+    function addYieldLocker(address locker) external onlyOwner {
+        if (yieldLockers.length == MAX_YIELD_LOCKERS) revert MaxYieldLockers();
+        yieldLockers.push(locker);
+    }
+
+    function addPrivateLocker(address locker) external onlyOwner {}
+
+    // Note : Double check no issue if idle set to max vs lockers
+    function setWeights(uint256[] memory newLockersWeights) external onlyOwner {
+        if (newLockersWeights.length != yieldLockers.length) revert LengthMismatch();
+        uint256 totalLockerWeights;
+        for (uint256 i; i < newLockersWeights.length; ++i) {
+            totalLockerWeights += newLockersWeights[i];
+        }
+        if (totalLockerWeights != BIPS) revert WeightsNotValid();
+        lockersWeights = newLockersWeights;
+    }
+
+    function setIdleRatio(uint256 newRatio) external onlyOwner {
+        if (newRatio > BIPS) revert MaxRatio();
+        idleRatio = newRatio;
     }
 }

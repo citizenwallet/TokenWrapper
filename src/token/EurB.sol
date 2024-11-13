@@ -10,9 +10,11 @@ import {IERC20} from "../../lib/openzeppelin-contracts/contracts/interfaces/IERC
 import {ISafe} from "./interfaces/ISafe.sol";
 import {ILocker} from "../lockers/interfaces/ILocker.sol";
 import {Ownable} from "../../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
+import {SafeERC20} from "../../lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Storage} from "./Storage.sol";
 
 contract EurB is ERC20Wrapper, Ownable, Storage {
+    using SafeERC20 for IERC20;
     using FixedPointMathLib for uint256;
 
     // note : yield
@@ -24,9 +26,11 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
     error LengthMismatch();
     error MaxCommissionsDepth();
     error MaxRatio();
+    error MaxYieldInterval();
     error MaxYieldLockers();
-    error TimeNotElapsed();
+    error SyncIntervalNotMet();
     error WeightsNotValid();
+    error YieldIntervalNotMet();
 
     /* //////////////////////////////////////////////////////////////
                                 EVENTS
@@ -114,7 +118,7 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
     ////////////////////////////////////////////////////////////// */
 
     function syncAll() external {
-        if (block.timestamp < lastSyncTime + 1 days) revert TimeNotElapsed();
+        if (block.timestamp < lastSyncTime + 1 days) revert SyncIntervalNotMet();
 
         // Cache values.
         uint256 BIPS_ = BIPS;
@@ -176,7 +180,25 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
     }
 
     // Note : It should mint the yield in underlying token and distribute to treasury
-    function collectYield() external {}
+    function collectYield() external returns (uint256 yield) {
+        if (block.timestamp - lastYieldClaim < yieldInterval) revert YieldIntervalNotMet();
+
+        // Cache value
+        address underlying_ = address(underlying());
+        // Get total balance before collecting yield.
+        uint256 initBalance = IERC20(underlying_).balanceOf(address(this));
+        for (uint256 i; i < lockersWeights.length; ++i) {
+            ILocker(yieldLockers[i]).collectYield(underlying_);
+        }
+        // Calculate yield collected.
+        uint256 newBalance = IERC20(underlying_).balanceOf(address(this));
+
+        yield = newBalance > initBalance ? newBalance - initBalance : 0;
+        if (yield > 0) {
+            // Mint the yield generated to the treasury.
+            _mint(treasury, yield);
+        }
+    }
 
     /**
      * @notice Will set a new treasury.
@@ -207,6 +229,11 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
     function setIdleRatio(uint256 newRatio) external onlyOwner {
         if (newRatio > BIPS) revert MaxRatio();
         idleRatio = newRatio;
+    }
+
+    function setYieldInterval(uint256 yieldInterval_) external onlyOwner {
+        if (yieldInterval_ > 30 days) revert MaxYieldInterval();
+        yieldInterval = yieldInterval_;
     }
 
     // Note : add a function to remove a locker.

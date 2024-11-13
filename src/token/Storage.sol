@@ -31,4 +31,8 @@ contract Storage {
     uint256 public idleRatio;
     // The last block.timestamp at which the function syncAll() was triggered.
     uint256 public lastSyncTime;
+    // The last block.timestamp at which the function collectYield() was called.
+    uint256 public lastYieldClaim;
+    // The minimum window between two yield claims.
+    uint256 public yieldInterval;
 }

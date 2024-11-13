@@ -126,7 +126,7 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
         uint256[] memory lockerBalances = new uint256[](weights.length);
         // We use weights.length as those should always sum to BIPS (see setWeights()).
         for (uint256 i; i < weights.length; ++i) {
-            lockerBalances[i] = ILocker(lockers[i]).totalSupply();
+            lockerBalances[i] = ILocker(lockers[i]).totalDeposited();
             totalInvested += lockerBalances[i];
         }
 
@@ -143,8 +143,8 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
                 uint256 proportionalAmount = toWithdraw.mulDivDown(weights[i], BIPS_);
                 // If locker has not enough balance, withdraw max possible.
                 lockerBalances[i] >= proportionalAmount
-                    ? ILocker(lockers[i]).withdraw(proportionalAmount)
-                    : ILocker(lockers[i]).withdraw(lockerBalances[i]);
+                    ? ILocker(lockers[i]).withdraw(underlying_, proportionalAmount)
+                    : ILocker(lockers[i]).withdraw(underlying_, lockerBalances[i]);
             }
         }
 
@@ -156,25 +156,26 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
         // We use weights.length as those should always sum to BIPS (see setWeights()).
         for (uint256 i; i < weights.length; ++i) {
             uint256 targetBalance = totalToInvest.mulDivDown(weights[i], BIPS_);
-            uint256 currentBalance = ILocker(lockers[i]).totalSupply();
+            uint256 currentBalance = ILocker(lockers[i]).totalDeposited();
 
             if (currentBalance < targetBalance) {
                 // Note : use batchApprove.
                 uint256 toDeposit = targetBalance - currentBalance;
                 IERC20(underlying_).approve(lockers[i], toDeposit);
                 // Don't revert if the call fails, continue.
-                try ILocker(lockers[i]).deposit(toDeposit) {}
+                try ILocker(lockers[i]).deposit(underlying_, toDeposit) {}
                 catch {
                     continue;
                 }
             } else if (currentBalance > targetBalance) {
                 uint256 toWithdraw = currentBalance - targetBalance;
                 // Don't revert if the call fails, continue.
-                try ILocker(lockers[i]).withdraw(toWithdraw) {} catch {}
+                try ILocker(lockers[i]).withdraw(underlying_, toWithdraw) {} catch {}
             }
         }
     }
 
+    // Note : It should mint the yield in underlying token and distribute to treasury
     function collectYield() external {}
 
     /**
@@ -207,4 +208,7 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
         if (newRatio > BIPS) revert MaxRatio();
         idleRatio = newRatio;
     }
+
+    // Note : add a function to remove a locker.
+    // Note : Do we put a recover function ?
 }

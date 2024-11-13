@@ -10,7 +10,7 @@ abstract contract AbstractLocker is ILocker, Ownable {
                                 STORAGE
     ////////////////////////////////////////////////////////////// */
 
-    uint256 public totalSupply;
+    uint256 public totalDeposited;
 
     /* //////////////////////////////////////////////////////////////
                                 EVENTS
@@ -28,29 +28,29 @@ abstract contract AbstractLocker is ILocker, Ownable {
                             CONSTRUCTOR
     ////////////////////////////////////////////////////////////// */
 
-    constructor(address eurB) Ownable(eurB) {}
+    constructor(address owner_) Ownable(owner_) {}
 
     /* //////////////////////////////////////////////////////////////
                         ASSET MANAGEMENT
     ////////////////////////////////////////////////////////////// */
 
-    function getTotalValue() external view virtual returns (uint256 value) {}
+    function getTotalValue(address asset) public view virtual returns (uint256 value) {}
 
     /* //////////////////////////////////////////////////////////////
                          DEPOSIT / WITHDRAW
     ////////////////////////////////////////////////////////////// */
 
-    function deposit(uint256 amount) external virtual onlyOwner {}
+    function deposit(address asset, uint256 amount) external virtual onlyOwner {}
 
-    function withdraw(uint256 amount) external virtual onlyOwner {}
+    function withdraw(address asset, uint256 amount) external virtual onlyOwner {}
 
-    function fullWithdraw() external virtual onlyOwner {}
+    function fullWithdraw(address asset) external virtual onlyOwner returns (uint256 withdrawn) {}
+
+    // Note: add a function that enables to withdraw all extra rewards that could have been accumulated.
 
     /* //////////////////////////////////////////////////////////////
                          FEES MANAGEMENT
     ////////////////////////////////////////////////////////////// */
 
-    function collectYield() external virtual returns (uint256 yield) {}
-
-    function compoundFees() external virtual {}
+    function collectYield(address asset) external virtual onlyOwner returns (uint256 yield) {}
 }

@@ -233,7 +233,9 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
         // Ensure locker is empty before removal, if not do a fullWithdraw.
         address underlying_ = address(underlying());
         if (ILocker(locker).getTotalValue(underlying_) != 0) {
-            ILocker(locker).fullWithdraw(underlying_);
+            (, uint256 yield) = ILocker(locker).fullWithdraw(underlying_);
+            // Yield collected is minted to the treasury.
+            _mint(treasury, yield);
         }
 
         // Replace the locker at index to remove by the locker at last position of array.
@@ -268,7 +270,6 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
         if (yieldInterval_ > 30 days) revert MaxYieldInterval();
         yieldInterval = yieldInterval_;
     }
-
     // Note : add a function to remove a locker.
     // Note : Do we put a recover function ?
 }

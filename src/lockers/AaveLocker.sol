@@ -69,7 +69,16 @@ contract AaveV3Locker is AbstractLocker {
         value = aTokenScaledBalance.mulDivDown(liquidityIndex, 1e27);
     }
 
-    function fullWithdraw(address asset) external override onlyOwner returns (uint256 withdrawn) {
-        withdrawn = AAVE_POOL.withdraw(asset, type(uint256).max, msg.sender);
+    function fullWithdraw(address asset) external override onlyOwner returns (uint256 principal, uint256 yield) {
+        // Calculate current value of position in underlying token.
+        uint256 withdrawableBalance = getTotalValue(asset);
+
+        // The yield is the difference between current claimable balance and total deposited.
+        // Cache value
+        uint256 totalDeposited_ = totalDeposited;
+        yield = withdrawableBalance > totalDeposited_ ? withdrawableBalance - totalDeposited_ : 0;
+
+        uint256 totalWithdrawn = AAVE_POOL.withdraw(asset, type(uint256).max, msg.sender);
+        principal = totalWithdrawn - yield;
     }
 }

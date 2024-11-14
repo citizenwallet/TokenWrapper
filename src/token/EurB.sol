@@ -23,6 +23,7 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
                                 ERRORS
     ////////////////////////////////////////////////////////////// */
 
+    error IsNotALocker();
     error LengthMismatch();
     error MaxCommissionsDepth();
     error MaxRatio();
@@ -211,6 +212,38 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
     function addYieldLocker(address locker) external onlyOwner {
         if (yieldLockers.length == MAX_YIELD_LOCKERS) revert MaxYieldLockers();
         yieldLockers.push(locker);
+    }
+
+    function removeYieldLocker(address locker) external onlyOwner {
+        // Cache values
+        address[] memory yieldLockers_ = yieldLockers;
+        if (yieldLockers_.length != lockersWeights.length) revert LengthMismatch();
+
+        // Check if locker exists and get the index.
+        uint256 index;
+        bool isLocker;
+        for (uint256 i; i < yieldLockers_.length; ++i) {
+            if (yieldLockers[i] == locker) {
+                index = i;
+                isLocker = true;
+            }
+        }
+        if (isLocker == false) revert IsNotALocker();
+
+        // Ensure locker is empty before removal, if not do a fullWithdraw.
+        address underlying_ = address(underlying());
+        if (ILocker(locker).getTotalValue(underlying_) != 0) {
+            ILocker(locker).fullWithdraw(underlying_);
+        }
+
+        // Replace the locker at index to remove by the locker at last position of array.
+        if (index < yieldLockers_.length - 1) {
+            yieldLockers[index] = yieldLockers[yieldLockers_.length - 1];
+            lockersWeights[index] = lockersWeights[yieldLockers_.length - 1];
+        }
+
+        yieldLockers.pop();
+        lockersWeights.pop();
     }
 
     function addPrivateLocker(address locker) external onlyOwner {}

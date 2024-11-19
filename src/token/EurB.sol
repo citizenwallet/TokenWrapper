@@ -17,14 +17,13 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
     using SafeERC20 for IERC20;
     using FixedPointMathLib for uint256;
 
-    // note : yield
-
     /* //////////////////////////////////////////////////////////////
                                 ERRORS
     ////////////////////////////////////////////////////////////// */
 
     error IsNotALocker();
     error LengthMismatch();
+    error LockerNotPrivate();
     error MaxCommissionsDepth();
     error MaxRatio();
     error MaxYieldInterval();
@@ -57,8 +56,6 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
     /* //////////////////////////////////////////////////////////////
                          ERC20 LOGIC
     ////////////////////////////////////////////////////////////// */
-
-    // Note: overwrite depositFor function and add a syncInterest/collateral
 
     /**
      * @notice Moves an amount of tokens from the caller's account to "to".
@@ -137,7 +134,8 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
 
         // Check if current idle balance meets target idle balance.
         uint256 currentIdle = IERC20(underlying_).balanceOf(address(this));
-        uint256 targetIdle = totalSupply() - totalInvested;
+        uint256 totalSupplyExclPrivate = totalSupply() - privateLockersSupply;
+        uint256 targetIdle = totalSupplyExclPrivate.mulDivDown(idleRatio, BIPS);
 
         // If not, withdraw from lockers according to weigths.
         if (currentIdle < targetIdle) {
@@ -147,20 +145,22 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
             for (uint256 i; i < weights.length; i++) {
                 uint256 proportionalAmount = toWithdraw.mulDivDown(weights[i], BIPS_);
                 // If locker has not enough balance, withdraw max possible.
-                lockerBalances[i] >= proportionalAmount
-                    ? ILocker(lockers[i]).withdraw(underlying_, proportionalAmount)
-                    : ILocker(lockers[i]).withdraw(underlying_, lockerBalances[i]);
+                if (lockerBalances[i] >= proportionalAmount) {
+                    try ILocker(lockers[i]).withdraw(underlying_, proportionalAmount) {} catch {}
+                } else {
+                    try ILocker(lockers[i]).withdraw(underlying_, lockerBalances[i]) {} catch {}
+                }
             }
         }
 
         // Get total amount that should be deposited in lockers (non-idle).
-        // Note : adapt formula for private locker that will have impact on total invested.
         // Note : check if ok to keep same totalSupply here (think should be ok)
-        uint256 totalToInvest = totalSupply().mulDivDown(BIPS_ - idleRatio, BIPS_);
+        uint256 totalToInvest = totalSupplyExclPrivate.mulDivDown(BIPS_ - idleRatio, BIPS_);
 
         // We use weights.length as those should always sum to BIPS (see setWeights()).
         for (uint256 i; i < weights.length; ++i) {
             uint256 targetBalance = totalToInvest.mulDivDown(weights[i], BIPS_);
+            // We have to call totalDeposited() again as balance may have updated after withdrawals.
             uint256 currentBalance = ILocker(lockers[i]).totalDeposited();
 
             if (currentBalance < targetBalance) {
@@ -248,8 +248,6 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
         lockersWeights.pop();
     }
 
-    function addPrivateLocker(address locker) external onlyOwner {}
-
     // Note : Double check no issue if idle set to max vs lockers
     function setWeights(uint256[] memory newLockersWeights) external onlyOwner {
         if (newLockersWeights.length != yieldLockers.length) revert LengthMismatch();
@@ -270,6 +268,25 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
         if (yieldInterval_ > 30 days) revert MaxYieldInterval();
         yieldInterval = yieldInterval_;
     }
-    // Note : add a function to remove a locker.
-    // Note : Do we put a recover function ?
+
+    /* //////////////////////////////////////////////////////////////
+                    PRIVATE YIELD LOCKERS LOGIC
+    ////////////////////////////////////////////////////////////// */
+
+    function addPrivateLocker(address locker) external onlyOwner {
+        isPrivateLocker[locker] = true;
+    }
+
+    function depositInPrivateLocker(address locker, uint256 amount) external onlyOwner {
+        if (isPrivateLocker[locker] == false) revert LockerNotPrivate();
+
+        privateLockersSupply += amount;
+
+        ILocker(locker).deposit(address(underlying()), amount);
+    }
+
+    function collectYieldFromPrivateLocker(address locker) external onlyOwner {
+        if (isPrivateLocker[locker] == false) revert LockerNotPrivate();
+    }
+    // Note : Do we put a recover function (yes with limited withdrawable assets) ?
 }

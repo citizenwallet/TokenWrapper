@@ -22,8 +22,9 @@ contract AaveV3Locker is AbstractLocker {
                              CONSTRUCTOR
     ////////////////////////////////////////////////////////////// */
 
-    constructor(address owner_, address aToken) AbstractLocker(owner_) {
+    constructor(address owner_, address aToken, address aavePool) AbstractLocker(owner_) {
         ATOKEN = IAaveToken(aToken);
+        AAVE_POOL = IAavePool(aavePool);
     }
 
     /* //////////////////////////////////////////////////////////////

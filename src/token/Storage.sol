@@ -19,7 +19,7 @@ contract Storage {
                                 STORAGE
     ////////////////////////////////////////////////////////////// */
 
-    // Would work with a registry here to access hookModules (others added and change in logic)
+    // The address of the CardFactory contract.
     ICardFactory public cardFactory;
     // The address of the treasury
     address public treasury;
@@ -35,4 +35,9 @@ contract Storage {
     uint256 public lastYieldClaim;
     // The minimum window between two yield claims.
     uint256 public yieldInterval;
+    // The total amount deposited in private lockers.
+    uint256 public privateLockersSupply;
+
+    // A mapping indicating if a yield locker is a private locker.
+    mapping(address locker => bool isPrivate) public isPrivateLocker;
 }

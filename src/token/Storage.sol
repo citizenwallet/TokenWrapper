@@ -19,6 +19,8 @@ contract Storage {
                                 STORAGE
     ////////////////////////////////////////////////////////////// */
 
+    // Reentrancy guard.
+    uint256 internal locked = 1;
     // The address of the CardFactory contract.
     ICardFactory public cardFactory;
     // The address of the treasury

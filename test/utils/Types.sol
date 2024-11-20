@@ -5,4 +5,5 @@ struct Users {
     address payable dao;
     address payable treasury;
     address payable unprivilegedAddress;
+    address payable tokenHolder;
 }

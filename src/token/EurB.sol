@@ -10,6 +10,7 @@ import {IERC20} from "../../lib/openzeppelin-contracts/contracts/interfaces/IERC
 import {ISafe} from "./interfaces/ISafe.sol";
 import {ILocker} from "../lockers/interfaces/ILocker.sol";
 import {Ownable} from "../../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
+import {ReentrancyGuard} from "../../lib/solmate/src/utils/ReentrancyGuard.sol";
 import {SafeERC20} from "../../lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Storage} from "./Storage.sol";
 
@@ -22,6 +23,7 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
     ////////////////////////////////////////////////////////////// */
 
     error IsNotALocker();
+    error IsActiveLocker();
     error LengthMismatch();
     error LockerNotPrivate();
     error MaxCommissionsDepth();
@@ -39,6 +41,16 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
     /* //////////////////////////////////////////////////////////////
                                 MODIFIERS
     ////////////////////////////////////////////////////////////// */
+
+    modifier nonReentrant() {
+        require(locked == 1, "REENTRANCY");
+
+        locked = 2;
+
+        _;
+
+        locked = 1;
+    }
 
     /* //////////////////////////////////////////////////////////////
                                 CONSTRUCTOR
@@ -115,8 +127,12 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
                          YIELD LOCKERS LOGIC
     ////////////////////////////////////////////////////////////// */
 
-    function syncAll() external {
+    /**
+     * @notice Synchronizes all yield lockers by adjusting balances based on weights and idle ratio.
+     */
+    function syncAll() external nonReentrant {
         if (block.timestamp < lastSyncTime + 1 days) revert SyncIntervalNotMet();
+        lastSyncTime = block.timestamp;
 
         // Cache values.
         uint256 BIPS_ = BIPS;
@@ -154,7 +170,6 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
         }
 
         // Get total amount that should be deposited in lockers (non-idle).
-        // Note : check if ok to keep same totalSupply here (think should be ok)
         uint256 totalToInvest = totalSupplyExclPrivate.mulDivDown(BIPS_ - idleRatio, BIPS_);
 
         // We use weights.length as those should always sum to BIPS (see setWeights()).
@@ -164,7 +179,6 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
             uint256 currentBalance = ILocker(lockers[i]).totalDeposited();
 
             if (currentBalance < targetBalance) {
-                // Note : use batchApprove.
                 uint256 toDeposit = targetBalance - currentBalance;
                 IERC20(underlying_).approve(lockers[i], toDeposit);
                 // Don't revert if the call fails, continue.
@@ -180,7 +194,10 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
         }
     }
 
-    // Note : It should mint the yield in underlying token and distribute to treasury
+    /**
+     * @notice Collects yield from all yield lockers and mints it to the treasury.
+     * @return yield The total yield collected.
+     */
     function collectYield() external returns (uint256 yield) {
         if (block.timestamp - lastYieldClaim < yieldInterval) revert YieldIntervalNotMet();
 
@@ -209,11 +226,19 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
         treasury = treasury_;
     }
 
+    /**
+     * @notice Adds a new yield locker to the system.
+     * @param locker The address of the locker to add.
+     */
     function addYieldLocker(address locker) external onlyOwner {
         if (yieldLockers.length == MAX_YIELD_LOCKERS) revert MaxYieldLockers();
         yieldLockers.push(locker);
     }
 
+    /**
+     * @notice Removes a yield locker from the system, withdrawing its balance.
+     * @param locker The address of the locker to remove.
+     */
     function removeYieldLocker(address locker) external onlyOwner {
         // Cache values
         address[] memory yieldLockers_ = yieldLockers;
@@ -248,6 +273,10 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
         lockersWeights.pop();
     }
 
+    /**
+     * @notice Sets the weights for yield lockers.
+     * @param newLockersWeights The new weights for each locker.
+     */
     // Note : Double check no issue if idle set to max vs lockers
     function setWeights(uint256[] memory newLockersWeights) external onlyOwner {
         if (newLockersWeights.length != yieldLockers.length) revert LengthMismatch();
@@ -259,11 +288,19 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
         lockersWeights = newLockersWeights;
     }
 
+    /**
+     * @notice Sets a new idle ratio for the system.
+     * @param newRatio The new idle ratio.
+     */
     function setIdleRatio(uint256 newRatio) external onlyOwner {
         if (newRatio > BIPS) revert MaxRatio();
         idleRatio = newRatio;
     }
 
+    /**
+     * @notice Sets the interval for yield collection.
+     * @param yieldInterval_ The new yield interval in seconds.
+     */
     function setYieldInterval(uint256 yieldInterval_) external onlyOwner {
         if (yieldInterval_ > 30 days) revert MaxYieldInterval();
         yieldInterval = yieldInterval_;
@@ -273,10 +310,22 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
                     PRIVATE YIELD LOCKERS LOGIC
     ////////////////////////////////////////////////////////////// */
 
+    /**
+     * @notice Marks an address as a private locker.
+     * @param locker The address of the locker to mark as private.
+     */
     function addPrivateLocker(address locker) external onlyOwner {
+        for (uint256 i; i < yieldLockers.length; ++i) {
+            if (locker == yieldLockers[i]) revert IsActiveLocker();
+        }
         isPrivateLocker[locker] = true;
     }
 
+    /**
+     * @notice Deposits an amount into a private locker.
+     * @param locker The address of the private locker.
+     * @param amount The amount to deposit.
+     */
     function depositInPrivateLocker(address locker, uint256 amount) external onlyOwner {
         if (isPrivateLocker[locker] == false) revert LockerNotPrivate();
 
@@ -285,8 +334,26 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
         ILocker(locker).deposit(address(underlying()), amount);
     }
 
-    function collectYieldFromPrivateLocker(address locker) external onlyOwner {
+    /**
+     * @notice Collects yield from a private locker.
+     * @param locker The address of the private locker.
+     */
+    function collectYieldFromPrivateLocker(address locker) external onlyOwner returns (uint256 yield) {
         if (isPrivateLocker[locker] == false) revert LockerNotPrivate();
+
+        // Cache value
+        address underlying_ = address(underlying());
+        // Get total balance before collecting yield.
+        uint256 initBalance = IERC20(underlying_).balanceOf(address(this));
+        ILocker(locker).collectYield(underlying_);
+        // Calculate yield collected.
+        uint256 newBalance = IERC20(underlying_).balanceOf(address(this));
+
+        yield = newBalance > initBalance ? newBalance - initBalance : 0;
+        if (yield > 0) {
+            // Mint the yield generated to the treasury.
+            _mint(treasury, yield);
+        }
     }
     // Note : Do we put a recover function (yes with limited withdrawable assets) ?
 }

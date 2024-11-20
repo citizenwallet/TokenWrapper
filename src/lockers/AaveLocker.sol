@@ -74,9 +74,11 @@ contract AaveV3Locker is AbstractLocker {
         // Calculate current value of position in underlying token.
         uint256 withdrawableBalance = getTotalValue(asset);
 
-        // The yield is the difference between current claimable balance and total deposited.
         // Cache value
         uint256 totalDeposited_ = totalDeposited;
+        totalDeposited = 0;
+
+        // The yield is the difference between current claimable balance and total deposited.
         yield = withdrawableBalance > totalDeposited_ ? withdrawableBalance - totalDeposited_ : 0;
 
         uint256 totalWithdrawn = AAVE_POOL.withdraw(asset, type(uint256).max, msg.sender);

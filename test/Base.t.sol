@@ -33,7 +33,8 @@ abstract contract Base_Test is Test {
         users = Users({
             dao: createUser("dao"),
             treasury: createUser("treasury"),
-            unprivilegedAddress: createUser("unprivilegedAddress")
+            unprivilegedAddress: createUser("unprivilegedAddress"),
+            tokenHolder: createUser("tokenHolder")
         });
     }
 

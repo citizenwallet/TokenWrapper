@@ -161,10 +161,9 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
             if (currentBalance > targetBalance) {
                 uint256 excess = currentBalance - targetBalance;
                 try ILocker(lockers[i]).withdraw(underlying_, excess) {
-                    currentIdle += excess; // Add withdrawn amount to idle balance.
-                } catch {
-                    continue; // Skip if withdrawal fails.
-                }
+                    // Add withdrawn amount to idle balance.
+                    currentIdle += excess;
+                } catch {}
             }
         }
 
@@ -185,9 +184,7 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
                     }
                     try ILocker(locker).deposit(underlying_, depositAmount) {
                         currentIdle -= depositAmount;
-                    } catch {
-                        continue;
-                    }
+                    } catch {}
                 }
             }
         }
@@ -331,10 +328,16 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
 
         privateLockersSupply += amount;
 
+        underlying().approve(locker, amount);
         ILocker(locker).deposit(address(underlying()), amount);
     }
 
-    function removeFromPrivateLocker(address locker, uint256 amount) external onlyOwner {
+    /**
+     * @notice Withdraws an amount from a private locker.
+     * @param locker The address of the private locker.
+     * @param amount The amount to withdraw.
+     */
+    function withdrawFromPrivateLocker(address locker, uint256 amount) external onlyOwner {
         if (isPrivateLocker[locker] == false) revert LockerNotPrivate();
 
         if (amount > privateLockersSupply) {

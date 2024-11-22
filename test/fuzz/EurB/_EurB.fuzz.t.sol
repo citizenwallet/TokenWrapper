@@ -119,4 +119,29 @@ abstract contract EurB_Fuzz_Test is Fuzz_Test {
 
         return stateVars;
     }
+
+    function setStatePrivateLocker(uint256 depositAmount, uint256 yield) public {
+        // Add locker to EURB.
+        vm.startPrank(users.dao);
+        LockerMock privateLocker = new LockerMock(address(EURB));
+        EURB.addPrivateLocker(address(privateLocker));
+        vm.stopPrank();
+
+        // Positive deposit.
+        depositAmount = bound(depositAmount, 1, type(uint96).max);
+
+        // Deposit
+        EURE.mint(users.tokenHolder, depositAmount);
+        vm.startPrank(users.tokenHolder);
+        EURE.approve(address(EURB), depositAmount);
+        EURB.depositFor(users.tokenHolder, depositAmount);
+
+        vm.startPrank(users.dao);
+        EURB.depositInPrivateLocker(address(privateLocker), depositAmount);
+        vm.stopPrank();
+
+        // Send yield to private Locker, is max 20% of deposited amount.
+        yield = bound(yield, 0, depositAmount.mulDivDown(2_000, BIPS));
+        EURE.mint(address(privateLocker), yield);
+    }
 }

@@ -55,7 +55,43 @@ contract SyncAll_EurB_Fuzz_Test is EurB_Fuzz_Test {
         EURB.syncAll();
 
         // Then: Correct values should be set.
-        uint256 totalBalanceInLockers = totalBalance.mulDivDown(BIPS - EURB.idleRatio(), BIPS);
+        uint256 idleRatio = EURB.idleRatio();
+        uint256 totalBalanceInLockers = totalBalance.mulDivDown(BIPS - idleRatio, BIPS);
+        uint256 expectedIdle = totalBalance.mulDivDown(idleRatio, BIPS);
+        assertApproxEqAbs(expectedIdle, EURE.balanceOf(address(EURB)), 5);
+        for (uint256 i; i < numberOfLockers_; ++i) {
+            uint256 expectedBalanceInLocker = totalBalanceInLockers.mulDivDown(EURB.lockersWeights(i), BIPS);
+            uint256 actualBalanceInLocker = ILocker(EURB.yieldLockers(i)).totalDeposited();
+            assertEq(expectedBalanceInLocker, actualBalanceInLocker);
+        }
+    }
+
+    function testFuzz_success_syncAll_WithPrivateLocker(
+        uint256 numberOfLockers,
+        uint256[5] memory lockerDeposits,
+        uint256[5] memory lockerYields,
+        uint256[5] memory lockerWeights,
+        StateVars memory stateVars,
+        uint256 privateLockerDepositAmount,
+        uint256 privateLockerYield
+    ) public {
+        // Given: Set valid state.
+        (uint256 totalInvested, uint256 numberOfLockers_) =
+            setStateOfLockers(numberOfLockers, lockerDeposits, lockerYields, lockerWeights);
+        stateVars = setStateVars(stateVars);
+        setStatePrivateLocker(privateLockerDepositAmount, privateLockerYield);
+
+        uint256 idleBalancePreSync = EURE.balanceOf(address(EURB));
+        uint256 totalBalance = totalInvested + idleBalancePreSync;
+
+        // When: Calling syncAll().
+        EURB.syncAll();
+
+        // Then: Correct values should be set.
+        uint256 idleRatio = EURB.idleRatio();
+        uint256 totalBalanceInLockers = totalBalance.mulDivDown(BIPS - idleRatio, BIPS);
+        uint256 expectedIdle = totalBalance.mulDivDown(idleRatio, BIPS);
+        assertApproxEqAbs(expectedIdle, EURE.balanceOf(address(EURB)), 5);
         for (uint256 i; i < numberOfLockers_; ++i) {
             uint256 expectedBalanceInLocker = totalBalanceInLockers.mulDivDown(EURB.lockersWeights(i), BIPS);
             uint256 actualBalanceInLocker = ILocker(EURB.yieldLockers(i)).totalDeposited();

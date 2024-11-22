@@ -1,0 +1,3 @@
+Constructor_EurB_Fuzz_Test:testFuzz_Success_deployment(address) (runs: 259, μ: 2174565, ~: 2174565)
+SyncAll_EurB_Fuzz_Test:testFuzz_Revert_syncAll_SyncIntervalNotMet(uint256) (runs: 259, μ: 40828, ~: 40849)
+SyncAll_EurB_Fuzz_Test:testFuzz_success_syncAll_NoPrivateLocker_currentIdleSmallerThanTarget(uint256,uint256[5],uint256[5],uint256[5],(uint256,uint256,uint256,uint256,uint256)) (runs: 259, μ: 2570654, ~: 2359627)

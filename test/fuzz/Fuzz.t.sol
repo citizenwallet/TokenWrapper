@@ -59,6 +59,15 @@ abstract contract Fuzz_Test is Base_Test {
         SAFE1 = new SafeMock();
         SAFE2 = new SafeMock();
         SAFE3 = new SafeMock();
+
+        // Label the deployed tokens
+        vm.label({account: address(COMMISSION_MODULE), newLabel: "CommissionModule"});
+        vm.label({account: address(CARD_FACTORY), newLabel: "CardFactory"});
+        vm.label({account: address(EURE), newLabel: "EURE"});
+        vm.label({account: address(EURB), newLabel: "EURB"});
+        vm.label({account: address(SAFE1), newLabel: "Safe 1"});
+        vm.label({account: address(SAFE2), newLabel: "Safe 2"});
+        vm.label({account: address(SAFE3), newLabel: "Safe 3"});
         vm.stopPrank();
     }
 

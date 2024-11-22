@@ -148,50 +148,50 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
             totalInvested += lockerBalances[i];
         }
 
-        // Check if current idle balance meets target idle balance.
+        // Calculate total supply excluding private funds and target values.
         uint256 currentIdle = IERC20(underlying_).balanceOf(address(this));
-        uint256 totalSupplyExclPrivate = totalSupply() - privateLockersSupply;
-        uint256 targetIdle = totalSupplyExclPrivate.mulDivDown(idleRatio, BIPS);
+        uint256 totalSupplyExclPrivate = currentIdle + totalInvested;
+        uint256 totalToInvest = totalSupplyExclPrivate.mulDivDown(BIPS_ - idleRatio, BIPS_);
 
-        // If not, withdraw from lockers according to weigths.
-        if (currentIdle < targetIdle) {
-            uint256 toWithdraw = targetIdle - currentIdle;
+        // Step 1: Withdraw excess from overfunded lockers.
+        for (uint256 i; i < weights.length; ++i) {
+            uint256 targetBalance = totalToInvest.mulDivDown(weights[i], BIPS_);
+            uint256 currentBalance = lockerBalances[i];
 
-            // Withdraw from lockers according to weights to meet idle requirement.
-            for (uint256 i; i < weights.length; i++) {
-                uint256 proportionalAmount = toWithdraw.mulDivDown(weights[i], BIPS_);
-                // If locker has not enough balance, withdraw max possible.
-                if (lockerBalances[i] >= proportionalAmount) {
-                    try ILocker(lockers[i]).withdraw(underlying_, proportionalAmount) {} catch {}
-                } else {
-                    try ILocker(lockers[i]).withdraw(underlying_, lockerBalances[i]) {} catch {}
+            if (currentBalance > targetBalance) {
+                uint256 excess = currentBalance - targetBalance;
+                try ILocker(lockers[i]).withdraw(underlying_, excess) {
+                    currentIdle += excess; // Add withdrawn amount to idle balance.
+                } catch {
+                    continue; // Skip if withdrawal fails.
                 }
             }
         }
 
-        // Get total amount that should be deposited in lockers (non-idle).
-        uint256 totalToInvest = totalSupplyExclPrivate.mulDivDown(BIPS_ - idleRatio, BIPS_);
-
-        // We use weights.length as those should always sum to BIPS (see setWeights()).
+        // Step 2: Deposit idle funds into underfunded lockers.
         for (uint256 i; i < weights.length; ++i) {
             uint256 targetBalance = totalToInvest.mulDivDown(weights[i], BIPS_);
-            // We have to call totalDeposited() again as balance may have updated after withdrawals.
-            uint256 currentBalance = ILocker(lockers[i]).totalDeposited();
+            address locker = lockers[i];
+            uint256 currentBalance = ILocker(locker).totalDeposited();
 
             if (currentBalance < targetBalance) {
                 uint256 toDeposit = targetBalance - currentBalance;
-                IERC20(underlying_).approve(lockers[i], toDeposit);
-                // Don't revert if the call fails, continue.
-                try ILocker(lockers[i]).deposit(underlying_, toDeposit) {}
-                catch {
-                    continue;
+                uint256 depositAmount = currentIdle >= toDeposit ? toDeposit : currentIdle;
+
+                if (depositAmount > 0) {
+                    // Avoid redundant approvals.
+                    if (IERC20(underlying_).allowance(address(this), locker) < toDeposit) {
+                        IERC20(underlying_).approve(locker, type(uint256).max);
+                    }
+                    try ILocker(locker).deposit(underlying_, depositAmount) {
+                        currentIdle -= depositAmount;
+                    } catch {
+                        continue;
+                    }
                 }
-            } else if (currentBalance > targetBalance) {
-                uint256 toWithdraw = currentBalance - targetBalance;
-                // Don't revert if the call fails, continue.
-                try ILocker(lockers[i]).withdraw(underlying_, toWithdraw) {} catch {}
             }
         }
+        // At this point, the idle balance should match the target idle balance.
     }
 
     /**
@@ -332,6 +332,18 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
         privateLockersSupply += amount;
 
         ILocker(locker).deposit(address(underlying()), amount);
+    }
+
+    function removeFromPrivateLocker(address locker, uint256 amount) external onlyOwner {
+        if (isPrivateLocker[locker] == false) revert LockerNotPrivate();
+
+        if (amount > privateLockersSupply) {
+            privateLockersSupply = 0;
+        } else {
+            privateLockersSupply -= amount;
+        }
+
+        ILocker(locker).withdraw(address(underlying()), amount);
     }
 
     /**

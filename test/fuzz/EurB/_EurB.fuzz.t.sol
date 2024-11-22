@@ -43,9 +43,10 @@ abstract contract EurB_Fuzz_Test is Fuzz_Test {
         uint256[5] memory lockerDeposits,
         uint256[5] memory lockerYields,
         uint256[5] memory lockerWeights
-    ) public {
+    ) public returns (uint256 totalDeposits, uint256 numberOfLockers_) {
         // Given: Deploy lockers and add them to EurB.
         numberOfLockers = bound(numberOfLockers, 1, 5);
+        numberOfLockers_ = numberOfLockers;
 
         uint256 sumOfLockerWeights;
         uint256[] memory lockerWeights_ = new uint256[](numberOfLockers);
@@ -65,9 +66,11 @@ abstract contract EurB_Fuzz_Test is Fuzz_Test {
                     lockerWeights_[i] = bound(lockerWeights[i], 0, BIPS - sumOfLockerWeights);
                 }
             }
+            sumOfLockerWeights += lockerWeights_[i];
 
             // Deposit in lockers.
             lockerDeposits[i] = bound(lockerDeposits[i], 0, type(uint96).max);
+            totalDeposits += lockerDeposits[i];
             // Mint to locker and dao.
             EURE.mint(address(newLocker), lockerDeposits[i]);
             EURB.mint(users.dao, lockerDeposits[i]);
@@ -86,7 +89,7 @@ abstract contract EurB_Fuzz_Test is Fuzz_Test {
         vm.stopPrank();
     }
 
-    function setStateVars(StateVars memory stateVars) public {
+    function setStateVars(StateVars memory stateVars) public returns (StateVars memory) {
         vm.startPrank(users.dao);
 
         // Set idle ratio.
@@ -107,10 +110,13 @@ abstract contract EurB_Fuzz_Test is Fuzz_Test {
 
         // Set idle balance.
         stateVars.idleBalance = bound(stateVars.idleBalance, 0, type(uint96).max);
-        EURE.mint(users.dao, stateVars.idleBalance);
-        vm.startPrank(users.dao);
-        EURB.depositFor(users.dao, stateVars.idleBalance);
+        EURE.mint(users.tokenHolder, stateVars.idleBalance);
+        vm.startPrank(users.tokenHolder);
+        EURE.approve(address(EURB), stateVars.idleBalance);
+        EURB.depositFor(users.tokenHolder, stateVars.idleBalance);
 
         vm.stopPrank();
+
+        return stateVars;
     }
 }

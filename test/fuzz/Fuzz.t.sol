@@ -74,4 +74,42 @@ abstract contract Fuzz_Test is Base_Test {
     /*//////////////////////////////////////////////////////////////////////////
                                       HELPERS
     //////////////////////////////////////////////////////////////////////////*/
+
+    function setValidStateCommissionModule(
+        uint256 numberOfRecipients,
+        address[5] memory recipients,
+        uint256[5] memory rates,
+        uint128 id
+    ) public returns (uint128 id_) {
+        // Valid number of recipients
+        numberOfRecipients = bound(numberOfRecipients, 1, COMMISSION_MODULE.MAX_RECIPIENTS());
+        vm.assume(id > 0);
+
+        // Set valid rates.
+        address[] memory recipients_ = new address[](numberOfRecipients);
+        uint256[] memory rates_ = new uint256[](numberOfRecipients);
+        for (uint256 i; i < numberOfRecipients; ++i) {
+            rates_[i] = bound(rates[i], 1, 400);
+            vm.assume(recipients[i] != address(0));
+            vm.assume(recipients[i] != address(SAFE1));
+            vm.assume(recipients[i] != address(SAFE2));
+            vm.assume(recipients[i] != address(SAFE3));
+            recipients_[i] = recipients[i];
+        }
+
+        vm.prank(users.dao);
+        COMMISSION_MODULE.setCommissionGroupInfo(id, recipients_, rates_);
+        return id;
+    }
+
+    function setValidCommissionedInfo(address commissioned, uint128 groupId, bool valid) public {
+        uint128 validUntil;
+        if (valid) {
+            validUntil = uint128(block.timestamp + 1);
+        } else {
+            validUntil = uint128(block.timestamp - 1);
+        }
+        vm.prank(users.dao);
+        COMMISSION_MODULE.setCommissionedInfo(commissioned, groupId, validUntil);
+    }
 }

@@ -63,7 +63,7 @@ contract CommissionModule is Ownable {
         external
         onlyOwner
     {
-        if (recipients_.length > 5) revert MaxRecipients();
+        if (recipients_.length > MAX_RECIPIENTS) revert MaxRecipients();
         if (recipients_.length != rates_.length) revert LengthMismatch();
         uint256 totalRate;
         for (uint256 i; i < rates_.length; ++i) {

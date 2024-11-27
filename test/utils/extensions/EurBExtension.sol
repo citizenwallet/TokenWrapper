@@ -20,4 +20,8 @@ contract EurBExtension is EurB {
     function setLastYieldClaim(uint256 lastYieldClaim_) public {
         lastYieldClaim = lastYieldClaim_;
     }
+
+    function processCommissions(address commissionModule, address commissioned, uint256 amount, uint256 depth) public {
+        _processCommissions(commissionModule, commissioned, amount, depth);
+    }
 }

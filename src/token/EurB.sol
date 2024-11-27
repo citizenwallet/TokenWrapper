@@ -105,6 +105,11 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
     {
         if (depth > MAX_COMMISSIONS_DEPTH) revert MaxCommissionsDepth();
 
+        // Skip if the address is not a contract
+        if (commissioned.code.length == 0) {
+            return;
+        }
+
         // If CommissionHookModule is enabled on potential commissioned address(receiver of last token transfer),
         // get recipients and rates and transfer corresponding amount from receiver to commission beneficiary.
         // Todo: validate no malicious contract that could return true for isModuleEnabled and where getCommissionInfo would not fail.
@@ -113,6 +118,8 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
                 (address[] memory recipients, uint256[] memory rates) =
                     ICommissionModule(commissionModule).getCommissionInfo(commissioned);
                 for (uint256 i; i < recipients.length; ++i) {
+                    // Recipient can't be equal to commissioned.
+                    if (commissioned == recipients[i]) continue;
                     uint256 commission = amount.mulDivDown(rates[i], BIPS);
                     // Do the transfer of the commission.
                     _transfer(commissioned, recipients[i], commission);

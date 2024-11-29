@@ -24,4 +24,12 @@ contract EurBExtension is EurB {
     function processCommissions(address commissionModule, address commissioned, uint256 amount, uint256 depth) public {
         _processCommissions(commissionModule, commissioned, amount, depth);
     }
+
+    function getYieldLockersLength() public view returns (uint256 length) {
+        length = yieldLockers.length;
+    }
+
+    function getWeightsLength() public view returns (uint256 length) {
+        length = lockersWeights.length;
+    }
 }

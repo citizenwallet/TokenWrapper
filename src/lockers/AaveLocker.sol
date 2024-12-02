@@ -15,8 +15,8 @@ contract AaveV3Locker is AbstractLocker {
                               CONSTANTS
     ////////////////////////////////////////////////////////////// */
 
-    IAavePool internal immutable AAVE_POOL;
-    IAaveToken internal immutable ATOKEN;
+    IAavePool public immutable AAVE_POOL;
+    IAaveToken public immutable ATOKEN;
 
     /* //////////////////////////////////////////////////////////////
                              CONSTRUCTOR

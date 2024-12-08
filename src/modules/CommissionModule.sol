@@ -112,7 +112,10 @@ contract CommissionModule is Ownable {
      * @param groupId_ The commission group ID associated with the address.
      * @param validUntil_ The timestamp until which the commission is valid.
      */
-    function setCommissionedInfo(address[] memory commissioned, uint128[] memory groupId_, uint128[] memory validUntil_) external onlyOwner {
+    function setCommissionedInfo(address[] memory commissioned, uint128[] memory groupId_, uint128[] memory validUntil_)
+        external
+        onlyOwner
+    {
         uint256 length = commissioned.length;
         if (groupId_.length != length) revert LengthMismatch();
         if (validUntil_.length != length) revert LengthMismatch();

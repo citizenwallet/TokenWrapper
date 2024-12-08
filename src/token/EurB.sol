@@ -30,6 +30,7 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
     error MaxRatio();
     error MaxYieldInterval();
     error MaxYieldLockers();
+    error RecoveryNotAllowed();
     error SyncIntervalNotMet();
     error WeightsNotValid();
     error YieldIntervalNotMet();
@@ -377,5 +378,20 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
             _mint(treasury, yield);
         }
     }
-    // Note : Do we put a recover function (yes with limited withdrawable assets) ?
+
+    /* //////////////////////////////////////////////////////////////
+                           HELPER FUNCTIONS
+    ////////////////////////////////////////////////////////////// */
+
+    /**
+     * @notice Function to recover ERC20 assets other than the underlying asset.
+     * @param asset The address of the asset to recover.
+     * @param amount The amount of asset to recover.
+     */
+    function recoverERC20(address asset, uint256 amount) external onlyOwner {
+        if (asset == address(underlying())) revert RecoveryNotAllowed();
+        if (asset == address(this)) revert RecoveryNotAllowed();
+
+        IERC20(asset).safeTransfer(msg.sender, amount);
+    }
 }

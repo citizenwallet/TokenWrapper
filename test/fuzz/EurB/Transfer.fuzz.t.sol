@@ -47,12 +47,34 @@ contract Transfer_EurB_Fuzz_Test is EurB_Fuzz_Test {
         EURB.mint(address(SAFE2), amount);
         vm.startPrank(address(SAFE2));
         EURB.transfer(address(SAFE1), amount);
+        vm.stopPrank();
 
         // Then: The commissions should have been paid.
         (address[] memory recipients_, uint256[] memory rates_) = COMMISSION_MODULE.getCommissionInfo(address(SAFE1));
+        uint256 totalCommissions;
         for (uint256 i; i < recipients_.length; ++i) {
             uint256 expectedCommission = uint256(amount).mulDivDown(rates_[i], BIPS);
             assertEq(expectedCommission, EURB.balanceOf(recipients_[i]));
+            totalCommissions += expectedCommission;
         }
+        assertEq(EURB.balanceOf(address(SAFE1)), amount - totalCommissions);
+    }
+
+    function testFuzz_Success_Transfer_CommissionModuleIsZeroAddress(uint128 amount) public {
+        // Given: Amount is positive.
+        amount = uint128(bound(amount, 1e18, type(uint128).max));
+
+        // And: Commission module is not set.
+        vm.prank(users.dao);
+        CARD_FACTORY.setCommissionHookModule(address(0));
+
+        // When: Calling transfer.
+        EURB.mint(address(SAFE2), amount);
+        vm.startPrank(address(SAFE2));
+        EURB.transfer(address(SAFE1), amount);
+        vm.stopPrank();
+
+        // Then: Full amount should have been transferred.
+        assertEq(EURB.balanceOf(address(SAFE1)), amount);
     }
 }

@@ -11,8 +11,8 @@ contract CommissionModule is Ownable {
     // 1 BIPS = 0,01%
     uint256 public constant BIPS = 10_000;
 
-    // Max commission per payment is 20% of paid amount.
-    uint256 public constant MAX_COMMISSION = 2_000;
+    // Max commission per payment is 25% of paid amount.
+    uint256 public constant MAX_COMMISSION = 2_500;
 
     // Max commission recipients.
     uint256 public constant MAX_RECIPIENTS = 5;
@@ -85,11 +85,11 @@ contract CommissionModule is Ownable {
     /**
      * @notice Sets the commissioned information for a specific address.
      * @param commissioned The address of the commissioned address.
-     * @param groupId_ The commission group ID associated with the address.
-     * @param validUntil_ The timestamp until which the commission is valid.
+     * @param groupId The commission group ID associated with the address.
+     * @param validUntil The timestamp until which the commission is valid.
      */
-    function setCommissionedInfo(address commissioned, uint128 groupId_, uint128 validUntil_) external onlyOwner {
-        CommissionedInfo memory info = CommissionedInfo({groupId: groupId_, validUntil: validUntil_});
+    function setCommissionedInfo(address commissioned, uint128 groupId, uint128 validUntil) external onlyOwner {
+        CommissionedInfo memory info = CommissionedInfo({groupId: groupId, validUntil: validUntil});
 
         commissionedInfo[commissioned] = info;
     }
@@ -97,11 +97,11 @@ contract CommissionModule is Ownable {
     /**
      * @notice Internal function to set the commissioned information for a specific address.
      * @param commissioned The address of the commissioned address.
-     * @param groupId_ The commission group ID associated with the address.
-     * @param validUntil_ The timestamp until which the commission is valid.
+     * @param groupId The commission group ID associated with the address.
+     * @param validUntil The timestamp until which the commission is valid.
      */
-    function _setCommissionedInfo(address commissioned, uint128 groupId_, uint128 validUntil_) internal {
-        CommissionedInfo memory info = CommissionedInfo({groupId: groupId_, validUntil: validUntil_});
+    function _setCommissionedInfo(address commissioned, uint128 groupId, uint128 validUntil) internal {
+        CommissionedInfo memory info = CommissionedInfo({groupId: groupId, validUntil: validUntil});
 
         commissionedInfo[commissioned] = info;
     }
@@ -109,18 +109,18 @@ contract CommissionModule is Ownable {
     /**
      * @notice Batch function to set the commissioned information a list of addresses.
      * @param commissioned The address of the commissioned addresses.
-     * @param groupId_ The commission group ID associated with the address.
-     * @param validUntil_ The timestamp until which the commission is valid.
+     * @param groupId The commission group ID associated with the address.
+     * @param validUntil The timestamp until which the commission is valid.
      */
-    function setCommissionedInfo(address[] memory commissioned, uint128[] memory groupId_, uint128[] memory validUntil_)
+    function setCommissionedInfo(address[] memory commissioned, uint128[] memory groupId, uint128[] memory validUntil)
         external
         onlyOwner
     {
         uint256 length = commissioned.length;
-        if (groupId_.length != length) revert LengthMismatch();
-        if (validUntil_.length != length) revert LengthMismatch();
+        if (groupId.length != length) revert LengthMismatch();
+        if (validUntil.length != length) revert LengthMismatch();
         for (uint256 i; i < length; ++i) {
-            _setCommissionedInfo(commissioned[i], groupId_[i], validUntil_[i]);
+            _setCommissionedInfo(commissioned[i], groupId[i], validUntil[i]);
         }
     }
 

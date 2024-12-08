@@ -265,7 +265,7 @@ contract EurB is ERC20Wrapper, Ownable, Storage {
         if (ILocker(locker).getTotalValue(underlying_) != 0) {
             (, uint256 yield) = ILocker(locker).fullWithdraw(underlying_);
             // Yield collected is minted to the treasury.
-            _mint(treasury, yield);
+            if (yield > 0) _mint(treasury, yield);
         }
 
         // Replace the locker at index to remove by the locker at last position of array.

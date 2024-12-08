@@ -59,6 +59,12 @@ contract CommissionModule is Ownable {
                              FUNCTIONS
     ////////////////////////////////////////////////////////////// */
 
+    /**
+     * @notice Sets the commission group information for a specific group ID.
+     * @param commissionGroupId The ID of the commission group.
+     * @param recipients_ The addresses of the commission recipients.
+     * @param rates_ The commission rates for each recipient in BIPS.
+     */
     function setCommissionGroupInfo(uint256 commissionGroupId, address[] memory recipients_, uint256[] memory rates_)
         external
         onlyOwner
@@ -76,17 +82,55 @@ contract CommissionModule is Ownable {
         commissionGroupInfo[commissionGroupId] = info;
     }
 
-    // Note : add a batch function.
+    /**
+     * @notice Sets the commissioned information for a specific address.
+     * @param commissioned The address of the commissioned address.
+     * @param groupId_ The commission group ID associated with the address.
+     * @param validUntil_ The timestamp until which the commission is valid.
+     */
     function setCommissionedInfo(address commissioned, uint128 groupId_, uint128 validUntil_) external onlyOwner {
         CommissionedInfo memory info = CommissionedInfo({groupId: groupId_, validUntil: validUntil_});
 
         commissionedInfo[commissioned] = info;
     }
 
+    /**
+     * @notice Internal function to set the commissioned information for a specific address.
+     * @param commissioned The address of the commissioned address.
+     * @param groupId_ The commission group ID associated with the address.
+     * @param validUntil_ The timestamp until which the commission is valid.
+     */
+    function _setCommissionedInfo(address commissioned, uint128 groupId_, uint128 validUntil_) internal {
+        CommissionedInfo memory info = CommissionedInfo({groupId: groupId_, validUntil: validUntil_});
+
+        commissionedInfo[commissioned] = info;
+    }
+
+    /**
+     * @notice Batch function to set the commissioned information a list of addresses.
+     * @param commissioned The address of the commissioned addresses.
+     * @param groupId_ The commission group ID associated with the address.
+     * @param validUntil_ The timestamp until which the commission is valid.
+     */
+    function setCommissionedInfo(address[] memory commissioned, uint128[] memory groupId_, uint128[] memory validUntil_) external onlyOwner {
+        uint256 length = commissioned.length;
+        if (groupId_.length != length) revert LengthMismatch();
+        if (validUntil_.length != length) revert LengthMismatch();
+        for (uint256 i; i < length; ++i) {
+            _setCommissionedInfo(commissioned[i], groupId_[i], validUntil_[i]);
+        }
+    }
+
     /* //////////////////////////////////////////////////////////////
                             VIEW FUNCTIONS
     ////////////////////////////////////////////////////////////// */
 
+    /**
+     * @notice Retrieves the commission information for a specific commissioned address.
+     * @param commissioned The address for which to retrieve commission information.
+     * @return recipients The list of commission recipients.
+     * @return rates The commission rates for each recipient in BIPS.
+     */
     function getCommissionInfo(address commissioned)
         external
         view
@@ -105,6 +149,12 @@ contract CommissionModule is Ownable {
         }
     }
 
+    /**
+     * @notice Retrieves the commission group information for a specific group ID.
+     * @param groupId The ID of the commission group.
+     * @return recipients The list of commission recipients.
+     * @return rates The commission rates for each recipient in BIPS.
+     */
     function getCommissionGroupInfo(uint256 groupId) external view returns (address[] memory, uint256[] memory) {
         CommissionGroupInfo storage info = commissionGroupInfo[groupId];
         return (info.recipients, info.rates);

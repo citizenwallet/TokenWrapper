@@ -5,11 +5,14 @@ import {Base_Test} from "../Base.t.sol";
 import {CardFactoryMock} from "../utils/mocks/CardFactoryMock.sol";
 import {CommissionModule} from "../../src/modules/CommissionModule.sol";
 import {ERC20Mock} from "../utils/mocks/ERC20Mock.sol";
-import {EurB} from "../../src/token/EurB.sol";
+import {EURB} from "../../src/token/EURB.sol";
 import {EurBExtension} from "../utils/extensions/EurBExtension.sol";
 import {IERC20} from "../../lib/openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {LockerMock} from "../utils/mocks/LockerMock.sol";
+import {Proxy} from "../../src/treasury/Proxy.sol";
 import {SafeMock} from "../utils/mocks/SafeMock.sol";
+import {TreasuryV1} from "../../src/treasury/TreasuryV1.sol";
+import {TreasuryV1Extension} from "../utils/extensions/TreasuryV1Extension.sol";
 
 /**
  * @notice Common logic needed by all fuzz tests.
@@ -23,6 +26,8 @@ abstract contract Fuzz_Test is Base_Test {
     // Unix timestamps of 12 November 2024
     uint256 public DATE_12_NOV_24 = 1731418562;
 
+    mapping(address recipient => bool) public exists;
+
     /*//////////////////////////////////////////////////////////////////////////
                                    TEST CONTRACTS
     //////////////////////////////////////////////////////////////////////////*/
@@ -30,11 +35,13 @@ abstract contract Fuzz_Test is Base_Test {
     CardFactoryMock public CARD_FACTORY;
     CommissionModule public COMMISSION_MODULE;
     ERC20Mock public EURE;
-    EurBExtension public EURB;
+    EurBExtension public EURB_;
 
     SafeMock public SAFE1;
     SafeMock public SAFE2;
     SafeMock public SAFE3;
+
+    TreasuryV1Extension public treasury;
 
     LockerMock[] public yieldLockers;
 
@@ -54,17 +61,27 @@ abstract contract Fuzz_Test is Base_Test {
         CARD_FACTORY = new CardFactoryMock(address(COMMISSION_MODULE));
         CARD_FACTORY.setCommissionHookModule(address(COMMISSION_MODULE));
         EURE = new ERC20Mock("Monerium EUR", "EURE", 18);
-        EURB = new EurBExtension(IERC20(address(EURE)), users.treasury, address(CARD_FACTORY));
+        EURB_ = new EurBExtension(address(CARD_FACTORY));
+
+        TreasuryV1Extension logic = new TreasuryV1Extension();
+        Proxy proxy = new Proxy(address(logic));
+        treasury = TreasuryV1Extension(address(proxy));
+        treasury.initialize(address(EURE));
 
         SAFE1 = new SafeMock();
         SAFE2 = new SafeMock();
         SAFE3 = new SafeMock();
 
+        // Grant Roles
+        EURB_.grantRole(MINTER_ROLE, users.minter);
+        EURB_.grantRole(BURNER_ROLE, users.burner);
+
         // Label the deployed tokens
         vm.label({account: address(COMMISSION_MODULE), newLabel: "CommissionModule"});
         vm.label({account: address(CARD_FACTORY), newLabel: "CardFactory"});
         vm.label({account: address(EURE), newLabel: "EURE"});
-        vm.label({account: address(EURB), newLabel: "EURB"});
+        vm.label({account: address(EURB_), newLabel: "EURB"});
+        vm.label({account: address(treasury), newLabel: "Treasury"});
         vm.label({account: address(SAFE1), newLabel: "Safe 1"});
         vm.label({account: address(SAFE2), newLabel: "Safe 2"});
         vm.label({account: address(SAFE3), newLabel: "Safe 3"});
@@ -94,7 +111,10 @@ abstract contract Fuzz_Test is Base_Test {
             vm.assume(recipients[i] != address(SAFE1));
             vm.assume(recipients[i] != address(SAFE2));
             vm.assume(recipients[i] != address(SAFE3));
+            // Avoid duplicates
+            vm.assume(exists[recipients[i]] == false);
             recipients_[i] = recipients[i];
+            exists[recipients[i]] = true;
         }
 
         vm.prank(users.dao);

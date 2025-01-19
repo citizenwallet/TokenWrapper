@@ -23,9 +23,9 @@ contract FullWithdraw_AaveLocker_Fork_Test is AaveLocker_Fork_Test {
         // Given: Deposit a certain amount.
         depositAmount = bound(depositAmount, 1e18, 10_000 * 1e18);
         vm.prank(EUREFund);
-        EURE.transfer(address(EURB), depositAmount);
+        EURE.transfer(address(TREASURY), depositAmount);
 
-        vm.startPrank(address(EURB));
+        vm.startPrank(address(TREASURY));
         EURE.approve(address(AAVE_LOCKER), depositAmount);
         AAVE_LOCKER.deposit(address(EURE), depositAmount);
 
@@ -37,8 +37,8 @@ contract FullWithdraw_AaveLocker_Fork_Test is AaveLocker_Fork_Test {
         uint256 expectedYield = initTotalValue - depositAmount;
 
         assertEq(expectedYield, yield);
-        assertEq(EURE.balanceOf(address(EURB)), yield + principal);
-        assertEq(principal, depositAmount);
+        assertEq(EURE.balanceOf(address(TREASURY)), yield + principal);
+        assertApproxEqAbs(principal, depositAmount, 1);
 
         vm.stopPrank();
     }

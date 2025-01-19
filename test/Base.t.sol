@@ -2,7 +2,7 @@
 pragma solidity ^0.8.22;
 
 import {CardFactoryMock} from "./utils/mocks/CardFactoryMock.sol";
-import {EurB} from "../src/token/EurB.sol";
+import {EURB} from "../src/token/EURB.sol";
 import {Test} from "../lib/forge-std/src/Test.sol";
 import {Users} from "./utils/Types.sol";
 
@@ -11,6 +11,13 @@ abstract contract Base_Test is Test {
     /*//////////////////////////////////////////////////////////////////////////
                                   CONSTANTS
     //////////////////////////////////////////////////////////////////////////*/
+
+    // Define Admin Role.
+    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
+    // Define Minter Role.
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+    // Define Burner Role.
+    bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
 
     /*//////////////////////////////////////////////////////////////////////////
                                      VARIABLES
@@ -34,7 +41,9 @@ abstract contract Base_Test is Test {
             dao: createUser("dao"),
             treasury: createUser("treasury"),
             unprivilegedAddress: createUser("unprivilegedAddress"),
-            tokenHolder: createUser("tokenHolder")
+            tokenHolder: createUser("tokenHolder"),
+            minter: createUser("minter"),
+            burner: createUser("burner")
         });
     }
 

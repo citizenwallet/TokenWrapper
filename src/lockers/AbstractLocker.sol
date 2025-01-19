@@ -42,7 +42,7 @@ abstract contract AbstractLocker is ILocker, Ownable {
 
     function deposit(address asset, uint256 amount) external virtual onlyOwner {}
 
-    function withdraw(address asset, uint256 amount) external virtual onlyOwner {}
+    function withdraw(address asset, uint256 amount) external virtual onlyOwner returns (uint256 withdrawn) {}
 
     function fullWithdraw(address asset) external virtual onlyOwner returns (uint256 principal, uint256 yield) {}
 

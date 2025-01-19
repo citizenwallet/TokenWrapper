@@ -1,25 +1,24 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.22;
 
-import {EurB_Fuzz_Test} from "./_EurB.fuzz.t.sol";
+import {Treasury_Fuzz_Test} from "./_Treasury.fuzz.t.sol";
 
-import {EurB} from "../../../src/token/EurB.sol";
 import {FixedPointMathLib} from "../../../lib/solmate/src/utils/FixedPointMathLib.sol";
 import {IERC20} from "../../../lib/openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {ILocker} from "../../../src/lockers/interfaces/ILocker.sol";
-import {Ownable} from "../../../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
+import {TreasuryV1} from "../../../src/treasury/TreasuryV1.sol";
 
 /**
- * @notice Fuzz tests for the function "removeYieldLocker" of contract "EurB".
+ * @notice Fuzz tests for the function "removeYieldLocker" of contract "Treasury".
  */
-contract RemoveYieldLocker_EurB_Fuzz_Test is EurB_Fuzz_Test {
+contract RemoveYieldLocker_Treasury_Fuzz_Test is Treasury_Fuzz_Test {
     using FixedPointMathLib for uint256;
     /* ///////////////////////////////////////////////////////////////
                               SETUP
     /////////////////////////////////////////////////////////////// */
 
     function setUp() public override {
-        EurB_Fuzz_Test.setUp();
+        Treasury_Fuzz_Test.setUp();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -29,20 +28,21 @@ contract RemoveYieldLocker_EurB_Fuzz_Test is EurB_Fuzz_Test {
         vm.assume(random != users.dao);
 
         vm.startPrank(random);
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, random));
-        EURB.removeYieldLocker(locker);
+        bytes memory expectedError = abi.encodeWithSelector(TreasuryV1.OnlyOwner.selector);
+        vm.expectRevert(expectedError);
+        treasury.removeYieldLocker(locker);
         vm.stopPrank();
     }
 
     function testFuzz_Revert_removeYieldLocker_LengthMismatch(address locker) public {
         // Given: Add an initial locker and no weights.
         vm.startPrank(users.dao);
-        EURB.addYieldLocker(locker);
+        treasury.addYieldLocker(locker);
 
         // When: Calling removeYieldLocker().
         // Then: It should revert.
-        vm.expectRevert(EurB.LengthMismatch.selector);
-        EURB.removeYieldLocker(locker);
+        vm.expectRevert(TreasuryV1.LengthMismatch.selector);
+        treasury.removeYieldLocker(locker);
         vm.stopPrank();
     }
 
@@ -52,17 +52,17 @@ contract RemoveYieldLocker_EurB_Fuzz_Test is EurB_Fuzz_Test {
 
         // And: Add an initial locker.
         vm.startPrank(users.dao);
-        EURB.addYieldLocker(locker);
+        treasury.addYieldLocker(locker);
 
         // And: An initial weight.
         uint256[] memory weights = new uint256[](1);
         weights[0] = BIPS;
-        EURB.setWeights(weights);
+        treasury.setWeights(weights);
 
         // When: Calling removeYieldLocker().
         // Then: It should revert.
-        vm.expectRevert(EurB.IsNotALocker.selector);
-        EURB.removeYieldLocker(notLocker);
+        vm.expectRevert(TreasuryV1.IsNotALocker.selector);
+        treasury.removeYieldLocker(notLocker);
         vm.stopPrank();
     }
 
@@ -80,16 +80,16 @@ contract RemoveYieldLocker_EurB_Fuzz_Test is EurB_Fuzz_Test {
 
         index = bound(index, 0, numberOfLockers_ - 1);
 
-        uint256 toWithdraw = ILocker(EURB.yieldLockers(index)).getTotalValue(address(EURB.underlying()));
-        uint256 balancePreRemoval = EURE.balanceOf(address(EURB));
+        uint256 toWithdraw = ILocker(treasury.yieldLockers(index)).getTotalValue(treasury.EURE());
+        uint256 balancePreRemoval = EURE.balanceOf(address(treasury));
 
         vm.startPrank(users.dao);
-        EURB.removeYieldLocker(EURB.yieldLockers(index));
+        treasury.removeYieldLocker(treasury.yieldLockers(index));
         vm.stopPrank();
 
-        uint256 balanceAfterRemoval = EURE.balanceOf(address(EURB));
+        uint256 balanceAfterRemoval = EURE.balanceOf(address(treasury));
         assertEq(balanceAfterRemoval, balancePreRemoval + toWithdraw);
-        assertEq(EURB.getYieldLockersLength(), numberOfLockers_ - 1);
-        assertEq(EURB.getWeightsLength(), numberOfLockers_ - 1);
+        assertEq(treasury.getYieldLockersLength(), numberOfLockers_ - 1);
+        assertEq(treasury.getWeightsLength(), numberOfLockers_ - 1);
     }
 }

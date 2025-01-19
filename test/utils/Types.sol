@@ -6,4 +6,6 @@ struct Users {
     address payable treasury;
     address payable unprivilegedAddress;
     address payable tokenHolder;
+    address payable minter;
+    address payable burner;
 }

@@ -1,24 +1,24 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.22;
 
-import {EurB_Fuzz_Test} from "./_EurB.fuzz.t.sol";
+import {Treasury_Fuzz_Test} from "./_Treasury.fuzz.t.sol";
 
-import {EurB} from "../../../src/token/EurB.sol";
 import {FixedPointMathLib} from "../../../lib/solmate/src/utils/FixedPointMathLib.sol";
 import {IERC20} from "../../../lib/openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {ILocker} from "../../../src/lockers/interfaces/ILocker.sol";
+import {TreasuryV1} from "../../../src/treasury/TreasuryV1.sol";
 
 /**
- * @notice Fuzz tests for the function "syncAll" of contract "EurB".
+ * @notice Fuzz tests for the function "syncAll" of contract "Treasury".
  */
-contract SyncAll_EurB_Fuzz_Test is EurB_Fuzz_Test {
+contract SyncAll_Treasury_Fuzz_Test is Treasury_Fuzz_Test {
     using FixedPointMathLib for uint256;
     /* ///////////////////////////////////////////////////////////////
                               SETUP
     /////////////////////////////////////////////////////////////// */
 
     function setUp() public override {
-        EurB_Fuzz_Test.setUp();
+        Treasury_Fuzz_Test.setUp();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -28,12 +28,12 @@ contract SyncAll_EurB_Fuzz_Test is EurB_Fuzz_Test {
         // Given: Sync interval has not passed.
         lastSyncTime = bound(lastSyncTime, block.timestamp - 1 days + 1, block.timestamp);
 
-        EURB.setLastSyncTime(lastSyncTime);
+        treasury.setLastSyncTime(lastSyncTime);
 
         // When: Calling syncAll().
         // Then: It should revert.
-        vm.expectRevert(EurB.SyncIntervalNotMet.selector);
-        EURB.syncAll();
+        vm.expectRevert(TreasuryV1.SyncIntervalNotMet.selector);
+        treasury.syncAll();
     }
 
     function testFuzz_success_syncAll_NoPrivateLocker(
@@ -48,20 +48,20 @@ contract SyncAll_EurB_Fuzz_Test is EurB_Fuzz_Test {
             setStateOfLockers(numberOfLockers, lockerDeposits, lockerYields, lockerWeights);
         stateVars = setStateVars(stateVars);
 
-        uint256 idleBalancePreSync = EURE.balanceOf(address(EURB));
+        uint256 idleBalancePreSync = EURE.balanceOf(address(treasury));
         uint256 totalBalance = totalInvested + idleBalancePreSync;
 
         // When: Calling syncAll().
-        EURB.syncAll();
+        treasury.syncAll();
 
         // Then: Correct values should be set.
-        uint256 idleRatio = EURB.idleRatio();
+        uint256 idleRatio = treasury.idleRatio();
         uint256 totalBalanceInLockers = totalBalance.mulDivDown(BIPS - idleRatio, BIPS);
         uint256 expectedIdle = totalBalance.mulDivDown(idleRatio, BIPS);
-        assertApproxEqAbs(expectedIdle, EURE.balanceOf(address(EURB)), 5);
+        assertApproxEqAbs(expectedIdle, EURE.balanceOf(address(treasury)), 5);
         for (uint256 i; i < numberOfLockers_; ++i) {
-            uint256 expectedBalanceInLocker = totalBalanceInLockers.mulDivDown(EURB.lockersWeights(i), BIPS);
-            uint256 actualBalanceInLocker = ILocker(EURB.yieldLockers(i)).totalDeposited();
+            uint256 expectedBalanceInLocker = totalBalanceInLockers.mulDivDown(treasury.lockersWeights(i), BIPS);
+            uint256 actualBalanceInLocker = ILocker(treasury.yieldLockers(i)).totalDeposited();
             assertEq(expectedBalanceInLocker, actualBalanceInLocker);
         }
     }
@@ -81,20 +81,20 @@ contract SyncAll_EurB_Fuzz_Test is EurB_Fuzz_Test {
         stateVars = setStateVars(stateVars);
         setStatePrivateLocker(privateLockerDepositAmount, privateLockerYield);
 
-        uint256 idleBalancePreSync = EURE.balanceOf(address(EURB));
+        uint256 idleBalancePreSync = EURE.balanceOf(address(treasury));
         uint256 totalBalance = totalInvested + idleBalancePreSync;
 
         // When: Calling syncAll().
-        EURB.syncAll();
+        treasury.syncAll();
 
         // Then: Correct values should be set.
-        uint256 idleRatio = EURB.idleRatio();
+        uint256 idleRatio = treasury.idleRatio();
         uint256 totalBalanceInLockers = totalBalance.mulDivDown(BIPS - idleRatio, BIPS);
         uint256 expectedIdle = totalBalance.mulDivDown(idleRatio, BIPS);
-        assertApproxEqAbs(expectedIdle, EURE.balanceOf(address(EURB)), 5);
+        assertApproxEqAbs(expectedIdle, EURE.balanceOf(address(treasury)), 5);
         for (uint256 i; i < numberOfLockers_; ++i) {
-            uint256 expectedBalanceInLocker = totalBalanceInLockers.mulDivDown(EURB.lockersWeights(i), BIPS);
-            uint256 actualBalanceInLocker = ILocker(EURB.yieldLockers(i)).totalDeposited();
+            uint256 expectedBalanceInLocker = totalBalanceInLockers.mulDivDown(treasury.lockersWeights(i), BIPS);
+            uint256 actualBalanceInLocker = ILocker(treasury.yieldLockers(i)).totalDeposited();
             assertEq(expectedBalanceInLocker, actualBalanceInLocker);
         }
     }

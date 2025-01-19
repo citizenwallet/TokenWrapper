@@ -23,9 +23,9 @@ contract Deposit_AaveLocker_Fork_Test is AaveLocker_Fork_Test {
         // Given: Give EURE balance to owner
         amount = bound(amount, 1e18, 10_000 * 1e18);
         vm.prank(EUREFund);
-        EURE.transfer(address(EURB), amount);
+        EURE.transfer(address(TREASURY), amount);
 
-        vm.startPrank(address(EURB));
+        vm.startPrank(address(TREASURY));
         // And: Owner approves Locker contract.
         EURE.approve(address(AAVE_LOCKER), amount);
         // When: Owner deposits inside EURE contract.

@@ -3,7 +3,7 @@ pragma solidity ^0.8.22;
 
 import {EurB_Fuzz_Test} from "./_EurB.fuzz.t.sol";
 
-import {EurB} from "../../../src/token/EurB.sol";
+import {EURB} from "../../../src/token/EURB.sol";
 import {FixedPointMathLib} from "../../../lib/solmate/src/utils/FixedPointMathLib.sol";
 import {IERC20} from "../../../lib/openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {ILocker} from "../../../src/lockers/interfaces/ILocker.sol";
@@ -32,8 +32,8 @@ contract ProcessCommissions_EurB_Fuzz_Test is EurB_Fuzz_Test {
 
         // When: Calling processCommissions.
         // Then: It should revert.
-        vm.expectRevert(EurB.MaxCommissionsDepth.selector);
-        EURB.processCommissions(address(COMMISSION_MODULE), random, amount, depth);
+        vm.expectRevert(EURB.MaxCommissionsDepth.selector);
+        EURB_.processCommissions(address(COMMISSION_MODULE), random, amount, depth);
     }
 
     function testFuzz_Success_ProcessCommissions(
@@ -56,14 +56,15 @@ contract ProcessCommissions_EurB_Fuzz_Test is EurB_Fuzz_Test {
         setValidCommissionedInfo(address(SAFE1), id, true);
 
         // When: Calling processCommissions.
-        EURB.mint(address(SAFE1), amount);
-        EURB.processCommissions(address(COMMISSION_MODULE), address(SAFE1), uint256(amount), 0);
+        vm.prank(users.minter);
+        EURB_.mint(address(SAFE1), amount);
+        EURB_.processCommissions(address(COMMISSION_MODULE), address(SAFE1), uint256(amount), 0);
 
         // Then: The commissions should have been paid.
         (address[] memory recipients_, uint256[] memory rates_) = COMMISSION_MODULE.getCommissionInfo(address(SAFE1));
         for (uint256 i; i < recipients_.length; ++i) {
             uint256 expectedCommission = uint256(amount).mulDivDown(rates_[i], BIPS);
-            assertEq(expectedCommission, EURB.balanceOf(recipients_[i]));
+            assertEq(expectedCommission, EURB_.balanceOf(recipients_[i]));
         }
     }
 
@@ -94,17 +95,19 @@ contract ProcessCommissions_EurB_Fuzz_Test is EurB_Fuzz_Test {
         vm.startPrank(users.dao);
         COMMISSION_MODULE.setCommissionedInfo(address(SAFE1), 1, uint128(block.timestamp + 1));
         COMMISSION_MODULE.setCommissionedInfo(address(SAFE2), 2, uint128(block.timestamp + 1));
+        vm.stopPrank();
 
         // When: Calling processCommissions.
-        EURB.mint(address(SAFE1), amount);
-        EURB.processCommissions(address(COMMISSION_MODULE), address(SAFE1), uint256(amount), 0);
+        vm.prank(users.minter);
+        EURB_.mint(address(SAFE1), amount);
+        EURB_.processCommissions(address(COMMISSION_MODULE), address(SAFE1), uint256(amount), 0);
 
         // Then: The commissions should have been paid.
         uint256 expectedCommission = uint256(amount).mulDivDown(rates[0], BIPS);
         uint256 secondCommission = expectedCommission.mulDivDown(rates[0], BIPS);
 
-        assertEq(EURB.balanceOf(address(SAFE3)), secondCommission);
-        assertEq(EURB.balanceOf(address(SAFE2)), expectedCommission - secondCommission);
+        assertEq(EURB_.balanceOf(address(SAFE3)), secondCommission);
+        assertEq(EURB_.balanceOf(address(SAFE2)), expectedCommission - secondCommission);
     }
 
     function testFuzz_Success_ProcessCommissions_OneLevelDepth_CommissionedIsRecipient(uint128 amount) public {
@@ -130,16 +133,18 @@ contract ProcessCommissions_EurB_Fuzz_Test is EurB_Fuzz_Test {
         vm.startPrank(users.dao);
         COMMISSION_MODULE.setCommissionedInfo(address(SAFE1), 1, uint128(block.timestamp + 1));
         COMMISSION_MODULE.setCommissionedInfo(address(SAFE2), 1, uint128(block.timestamp + 1));
+        vm.stopPrank();
 
         // When: Calling processCommissions.
-        EURB.mint(address(SAFE1), amount);
-        EURB.processCommissions(address(COMMISSION_MODULE), address(SAFE1), uint256(amount), 0);
+        vm.prank(users.minter);
+        EURB_.mint(address(SAFE1), amount);
+        EURB_.processCommissions(address(COMMISSION_MODULE), address(SAFE1), uint256(amount), 0);
 
         // Then: The commissions should have been paid.
         (address[] memory recipients_, uint256[] memory rates_) = COMMISSION_MODULE.getCommissionInfo(address(SAFE1));
         for (uint256 i; i < recipients_.length; ++i) {
             uint256 expectedCommission = uint256(amount).mulDivDown(rates_[i], BIPS);
-            assertEq(expectedCommission, EURB.balanceOf(recipients_[i]));
+            assertEq(expectedCommission, EURB_.balanceOf(recipients_[i]));
         }
     }
 
@@ -148,6 +153,6 @@ contract ProcessCommissions_EurB_Fuzz_Test is EurB_Fuzz_Test {
         amount = uint128(bound(amount, 1e18, type(uint128).max));
 
         // When: Calling processCommissions.
-        EURB.processCommissions(address(COMMISSION_MODULE), address(EURE), uint256(amount), 0);
+        EURB_.processCommissions(address(COMMISSION_MODULE), address(EURE), uint256(amount), 0);
     }
 }

@@ -5,10 +5,11 @@ import {Base_Test} from "../Base.t.sol";
 import {CardFactoryMock} from "../utils/mocks/CardFactoryMock.sol";
 import {CommissionModule} from "../../src/modules/CommissionModule.sol";
 import {ERC20Mock} from "../utils/mocks/ERC20Mock.sol";
-import {EurB} from "../../src/token/EurB.sol";
 import {EurBExtension} from "../utils/extensions/EurBExtension.sol";
 import {IERC20} from "../../lib/openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+import {Proxy} from "../../src/treasury/Proxy.sol";
 import {SafeMock} from "../utils/mocks/SafeMock.sol";
+import {TreasuryV1} from "../../src/treasury/TreasuryV1.sol";
 
 /**
  * @notice Common logic needed by all fork tests.
@@ -33,10 +34,10 @@ abstract contract Fork_Test is Base_Test {
                                    TEST CONTRACTS
     //////////////////////////////////////////////////////////////////////////*/
 
-    EurBExtension public EURB;
     CardFactoryMock public CARD_FACTORY;
     CommissionModule public COMMISSION_MODULE;
     SafeMock public SAFE;
+    TreasuryV1 public TREASURY;
 
     /*//////////////////////////////////////////////////////////////////////////
                                   SET-UP FUNCTION
@@ -53,14 +54,18 @@ abstract contract Fork_Test is Base_Test {
         vm.startPrank(users.dao);
         COMMISSION_MODULE = new CommissionModule();
         CARD_FACTORY = new CardFactoryMock(address(COMMISSION_MODULE));
-        EURB = new EurBExtension(EURE, users.treasury, address(CARD_FACTORY));
+
+        TreasuryV1 logic = new TreasuryV1();
+        Proxy proxy = new Proxy(address(logic));
+        TREASURY = TreasuryV1(address(proxy));
+
         SAFE = new SafeMock();
 
         // Label the deployed tokens
         vm.label({account: address(COMMISSION_MODULE), newLabel: "CommissionModule"});
         vm.label({account: address(CARD_FACTORY), newLabel: "CardFactory"});
         vm.label({account: address(EURE), newLabel: "EURE"});
-        vm.label({account: address(EURB), newLabel: "EURB"});
+        vm.label({account: address(TREASURY), newLabel: "TREASURY"});
         vm.label({account: address(SAFE), newLabel: "Safe"});
         vm.stopPrank();
     }

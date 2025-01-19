@@ -42,6 +42,7 @@ contract TreasuryV1 is StorageV1 {
     error SyncIntervalNotMet();
     error WeightsNotValid();
     error YieldIntervalNotMet();
+    error YieldTooLow();
 
     /* //////////////////////////////////////////////////////////////
                                 EVENTS
@@ -73,6 +74,25 @@ contract TreasuryV1 is StorageV1 {
     /* //////////////////////////////////////////////////////////////
                          YIELD LOCKERS LOGIC
     ////////////////////////////////////////////////////////////// */
+
+    /**
+     * @notice Claims an amount of yield from the treasury.
+     * @param amount The amount of yield to claim.
+     * @param receiver The address receiving the yield.
+     * @dev If amount provided is equal to type(uint256).max, it will claim the full available yield balance.
+     */
+    function claimYield(uint256 amount, address receiver) external onlyOwner {
+        if (amount > availableYield) revert YieldTooLow();
+
+        if (amount == type(uint256).max) {
+            uint256 availableYield_ = availableYield;
+            availableYield = 0;
+            IERC20(EURE).safeTransfer(receiver, availableYield_);
+        } else {
+            availableYield -= amount;
+            IERC20(EURE).safeTransfer(receiver, amount);
+        }
+    }
 
     /**
      * @notice Synchronizes all yield lockers by adjusting balances based on weights and idle ratio.

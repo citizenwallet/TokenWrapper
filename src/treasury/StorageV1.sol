@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.22;
 
-contract Storage {
+contract StorageV1 {
     /* //////////////////////////////////////////////////////////////
                                 CONSTANTS
     ////////////////////////////////////////////////////////////// */
@@ -10,15 +10,17 @@ contract Storage {
     uint256 internal constant BIPS = 10_000;
     // Max number of active yield lockers.
     uint256 internal constant MAX_YIELD_LOCKERS = 5;
-    // The address of the EURE token accepted in the treasury.
-    address internal immutable EURE;
 
     /* //////////////////////////////////////////////////////////////
                                 STORAGE
     ////////////////////////////////////////////////////////////// */
 
+    // The address of the EURE token accepted in the treasury.
+    address public EURE;
+    // The address of the owner.
+    address public owner;
     // Reentrancy guard.
-    uint256 internal locked = 1;
+    uint256 internal locked;
     // An array with active yield lockers.
     address[] public yieldLockers;
     // An array containing the weight of each locker, sum of weights should equal BIPS (100%).

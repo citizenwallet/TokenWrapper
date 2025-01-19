@@ -1,24 +1,24 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.22;
 
-import {EurB_Fuzz_Test} from "./_EurB.fuzz.t.sol";
+import {Treasury_Fuzz_Test} from "./_Treasury.fuzz.t.sol";
 
-import {EurB} from "../../../src/token/EurB.sol";
 import {FixedPointMathLib} from "../../../lib/solmate/src/utils/FixedPointMathLib.sol";
 import {IERC20} from "../../../lib/openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {ILocker} from "../../../src/lockers/interfaces/ILocker.sol";
+import {TreasuryV1} from "../../../src/treasury/TreasuryV1.sol";
 
 /**
- * @notice Fuzz tests for the function "collectYield" of contract "EurB".
+ * @notice Fuzz tests for the function "collectYield" of contract "Treasury".
  */
-contract CollectYield_EurB_Fuzz_Test is EurB_Fuzz_Test {
+contract CollectYield_Treasury_Fuzz_Test is Treasury_Fuzz_Test {
     using FixedPointMathLib for uint256;
     /* ///////////////////////////////////////////////////////////////
                               SETUP
     /////////////////////////////////////////////////////////////// */
 
     function setUp() public override {
-        EurB_Fuzz_Test.setUp();
+        Treasury_Fuzz_Test.setUp();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -32,14 +32,14 @@ contract CollectYield_EurB_Fuzz_Test is EurB_Fuzz_Test {
         );
 
         vm.startPrank(users.dao);
-        EURB.setYieldInterval(yieldInterval);
-        EURB.setLastYieldClaim(lastYieldClaim);
+        treasury.setYieldInterval(yieldInterval);
+        treasury.setLastYieldClaim(lastYieldClaim);
         vm.stopPrank();
 
         // When: Calling collectYield().
         // Then: It should revert.
-        vm.expectRevert(EurB.YieldIntervalNotMet.selector);
-        EURB.collectYield();
+        vm.expectRevert(TreasuryV1.YieldIntervalNotMet.selector);
+        treasury.collectYield();
     }
 
     function testFuzz_success_collectYield(
@@ -56,24 +56,22 @@ contract CollectYield_EurB_Fuzz_Test is EurB_Fuzz_Test {
         // And: yieldInterval is 0 (yield can always be claimed).
         uint256 expectedCollectedYield;
         for (uint256 i; i < numberOfLockers_; ++i) {
-            address locker = EURB.yieldLockers(i);
+            address locker = treasury.yieldLockers(i);
             uint256 yield = EURE.balanceOf(locker) - ILocker(locker).totalDeposited();
             expectedCollectedYield += yield;
         }
 
-        uint256 initBalance = EURE.balanceOf(address(EURB));
+        uint256 initBalance = EURE.balanceOf(address(treasury));
 
         // When: Calling collectYield().
-        EURB.collectYield();
+        treasury.collectYield();
 
-        // Then: Yield should have been minted to the treasury.
-        assertEq(EURB.balanceOf(users.treasury), expectedCollectedYield);
         // And: EURE yield should be sent to EURB.
-        assertEq(EURE.balanceOf(address(EURB)), initBalance + expectedCollectedYield);
+        assertEq(EURE.balanceOf(address(treasury)), initBalance + expectedCollectedYield);
 
         // And: Remaining balance of locker = totalDeposited.
         for (uint256 i; i < numberOfLockers_; ++i) {
-            address locker = EURB.yieldLockers(i);
+            address locker = treasury.yieldLockers(i);
             assertEq(EURE.balanceOf(locker), ILocker(locker).totalDeposited());
         }
     }

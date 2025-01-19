@@ -1,25 +1,25 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.22;
 
-import {EurB_Fuzz_Test} from "./_EurB.fuzz.t.sol";
+import {Treasury_Fuzz_Test} from "./_Treasury.fuzz.t.sol";
 
-import {EurB} from "../../../src/token/EurB.sol";
 import {FixedPointMathLib} from "../../../lib/solmate/src/utils/FixedPointMathLib.sol";
 import {IERC20} from "../../../lib/openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {ILocker} from "../../../src/lockers/interfaces/ILocker.sol";
 import {Ownable} from "../../../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
+import {TreasuryV1} from "../../../src/treasury/TreasuryV1.sol";
 
 /**
- * @notice Fuzz tests for the function "setWeights" of contract "EurB".
+ * @notice Fuzz tests for the function "setWeights" of contract "Treasury".
  */
-contract SetWeights_EurB_Fuzz_Test is EurB_Fuzz_Test {
+contract SetWeights_Treasury_Fuzz_Test is Treasury_Fuzz_Test {
     using FixedPointMathLib for uint256;
     /* ///////////////////////////////////////////////////////////////
                               SETUP
     /////////////////////////////////////////////////////////////// */
 
     function setUp() public override {
-        EurB_Fuzz_Test.setUp();
+        Treasury_Fuzz_Test.setUp();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -33,8 +33,9 @@ contract SetWeights_EurB_Fuzz_Test is EurB_Fuzz_Test {
         weights[0] = 1000;
 
         vm.startPrank(random);
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, random));
-        EURB.setWeights(weights);
+        bytes memory expectedError = abi.encodeWithSelector(TreasuryV1.OnlyOwner.selector);
+        vm.expectRevert(expectedError);
+        treasury.setWeights(weights);
         vm.stopPrank();
     }
 
@@ -42,7 +43,7 @@ contract SetWeights_EurB_Fuzz_Test is EurB_Fuzz_Test {
         // Add 2 lockers
         for (uint256 i; i < 2; ++i) {
             vm.prank(users.dao);
-            EURB.addYieldLocker(lockers[i]);
+            treasury.addYieldLocker(lockers[i]);
         }
 
         // Set weights with length of 1.
@@ -52,8 +53,8 @@ contract SetWeights_EurB_Fuzz_Test is EurB_Fuzz_Test {
         // When: Calling setWeights.
         // Then: It should revert.
         vm.startPrank(users.dao);
-        vm.expectRevert(EurB.LengthMismatch.selector);
-        EURB.setWeights(weights);
+        vm.expectRevert(TreasuryV1.LengthMismatch.selector);
+        treasury.setWeights(weights);
         vm.stopPrank();
     }
 
@@ -61,7 +62,7 @@ contract SetWeights_EurB_Fuzz_Test is EurB_Fuzz_Test {
         // Add 2 lockers
         for (uint256 i; i < 2; ++i) {
             vm.prank(users.dao);
-            EURB.addYieldLocker(lockers[i]);
+            treasury.addYieldLocker(lockers[i]);
         }
 
         // Set weights with length of 2.
@@ -72,8 +73,8 @@ contract SetWeights_EurB_Fuzz_Test is EurB_Fuzz_Test {
         // When: Calling setWeights.
         // Then: It should revert.
         vm.startPrank(users.dao);
-        vm.expectRevert(EurB.WeightsNotValid.selector);
-        EURB.setWeights(weights);
+        vm.expectRevert(TreasuryV1.WeightsNotValid.selector);
+        treasury.setWeights(weights);
         vm.stopPrank();
     }
 
@@ -81,7 +82,7 @@ contract SetWeights_EurB_Fuzz_Test is EurB_Fuzz_Test {
         // Add 2 lockers
         for (uint256 i; i < 2; ++i) {
             vm.prank(users.dao);
-            EURB.addYieldLocker(lockers[i]);
+            treasury.addYieldLocker(lockers[i]);
         }
 
         // Set weights with length of 2.
@@ -92,10 +93,10 @@ contract SetWeights_EurB_Fuzz_Test is EurB_Fuzz_Test {
         // When: Calling setWeights.
         // Then: It should revert.
         vm.startPrank(users.dao);
-        EURB.setWeights(weights);
+        treasury.setWeights(weights);
         vm.stopPrank();
 
-        assertEq(EURB.lockersWeights(0), 6000);
-        assertEq(EURB.lockersWeights(1), 4000);
+        assertEq(treasury.lockersWeights(0), 6000);
+        assertEq(treasury.lockersWeights(1), 4000);
     }
 }

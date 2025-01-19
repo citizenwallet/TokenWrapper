@@ -1,44 +1,47 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.22;
 
-import {EurB_Fuzz_Test} from "./_EurB.fuzz.t.sol";
+import {Treasury_Fuzz_Test} from "./_Treasury.fuzz.t.sol";
 
-import {EurB} from "../../../src/token/EurB.sol";
 import {FixedPointMathLib} from "../../../lib/solmate/src/utils/FixedPointMathLib.sol";
 import {IERC20} from "../../../lib/openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {ILocker} from "../../../src/lockers/interfaces/ILocker.sol";
 import {Ownable} from "../../../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
+import {TreasuryV1} from "../../../src/treasury/TreasuryV1.sol";
 
 /**
- * @notice Fuzz tests for the function "setTreasury" of contract "EurB".
+ * @notice Fuzz tests for the function "setIdleRatio" of contract "Treasury".
  */
-contract SetTreasury_EurB_Fuzz_Test is EurB_Fuzz_Test {
+contract SetIdleRatio_Treasury_Fuzz_Test is Treasury_Fuzz_Test {
     using FixedPointMathLib for uint256;
     /* ///////////////////////////////////////////////////////////////
                               SETUP
     /////////////////////////////////////////////////////////////// */
 
     function setUp() public override {
-        EurB_Fuzz_Test.setUp();
+        Treasury_Fuzz_Test.setUp();
     }
 
     /*//////////////////////////////////////////////////////////////
                               TESTS
     //////////////////////////////////////////////////////////////*/
-    function testFuzz_Revert_SetTreasury_NotOwner(address random, address treasury) public {
+    function testFuzz_Revert_SetIdleRatio_NotOwner(address random, uint256 ratio) public {
         vm.assume(random != users.dao);
 
         vm.startPrank(random);
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, random));
-        EURB.setTreasury(treasury);
+        bytes memory expectedError = abi.encodeWithSelector(TreasuryV1.OnlyOwner.selector);
+        vm.expectRevert(expectedError);
+        treasury.setIdleRatio(ratio);
         vm.stopPrank();
     }
 
-    function testFuzz_Success_SetTreasury(address treasury) public {
+    function testFuzz_Success_SetIdleRatio(uint256 ratio) public {
+        ratio = bound(ratio, 0, BIPS);
+
         vm.startPrank(users.dao);
-        EURB.setTreasury(treasury);
+        treasury.setIdleRatio(ratio);
         vm.stopPrank();
 
-        assertEq(EURB.treasury(), treasury);
+        assertEq(treasury.idleRatio(), ratio);
     }
 }

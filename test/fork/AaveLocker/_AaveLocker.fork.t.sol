@@ -39,7 +39,7 @@ abstract contract AaveLocker_Fork_Test is Fork_Test {
 
         // Deploy contracts.
         address pool = 0xb50201558B00496A145fE76f7424749556E326D8;
-        AAVE_LOCKER = new AaveV3Locker(address(EURB), aEURE, pool);
+        AAVE_LOCKER = new AaveV3Locker(address(TREASURY), aEURE, pool);
     }
 
     /* ///////////////////////////////////////////////////////////////

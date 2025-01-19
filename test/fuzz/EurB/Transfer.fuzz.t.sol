@@ -3,7 +3,7 @@ pragma solidity ^0.8.22;
 
 import {EurB_Fuzz_Test} from "./_EurB.fuzz.t.sol";
 
-import {EurB} from "../../../src/token/EurB.sol";
+import {EURB} from "../../../src/token/EURB.sol";
 import {FixedPointMathLib} from "../../../lib/solmate/src/utils/FixedPointMathLib.sol";
 import {IERC20} from "../../../lib/openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {ILocker} from "../../../src/lockers/interfaces/ILocker.sol";
@@ -44,9 +44,10 @@ contract Transfer_EurB_Fuzz_Test is EurB_Fuzz_Test {
         setValidCommissionedInfo(address(SAFE1), id, true);
 
         // When: Calling transfer.
-        EURB.mint(address(SAFE2), amount);
+        vm.prank(users.minter);
+        EURB_.mint(address(SAFE2), amount);
         vm.startPrank(address(SAFE2));
-        EURB.transfer(address(SAFE1), amount);
+        EURB_.transfer(address(SAFE1), amount);
         vm.stopPrank();
 
         // Then: The commissions should have been paid.
@@ -54,10 +55,10 @@ contract Transfer_EurB_Fuzz_Test is EurB_Fuzz_Test {
         uint256 totalCommissions;
         for (uint256 i; i < recipients_.length; ++i) {
             uint256 expectedCommission = uint256(amount).mulDivDown(rates_[i], BIPS);
-            assertEq(expectedCommission, EURB.balanceOf(recipients_[i]));
+            assertEq(expectedCommission, EURB_.balanceOf(recipients_[i]));
             totalCommissions += expectedCommission;
         }
-        assertEq(EURB.balanceOf(address(SAFE1)), amount - totalCommissions);
+        assertEq(EURB_.balanceOf(address(SAFE1)), amount - totalCommissions);
     }
 
     function testFuzz_Success_Transfer_CommissionModuleIsZeroAddress(uint128 amount) public {
@@ -69,12 +70,12 @@ contract Transfer_EurB_Fuzz_Test is EurB_Fuzz_Test {
         CARD_FACTORY.setCommissionHookModule(address(0));
 
         // When: Calling transfer.
-        EURB.mint(address(SAFE2), amount);
-        vm.startPrank(address(SAFE2));
-        EURB.transfer(address(SAFE1), amount);
-        vm.stopPrank();
+        vm.prank(users.minter);
+        EURB_.mint(address(SAFE2), amount);
+        vm.prank(address(SAFE2));
+        EURB_.transfer(address(SAFE1), amount);
 
         // Then: Full amount should have been transferred.
-        assertEq(EURB.balanceOf(address(SAFE1)), amount);
+        assertEq(EURB_.balanceOf(address(SAFE1)), amount);
     }
 }

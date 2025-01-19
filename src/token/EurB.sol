@@ -11,7 +11,7 @@ import {ISafe} from "./interfaces/ISafe.sol";
 import {ReentrancyGuard} from "../../lib/solmate/src/utils/ReentrancyGuard.sol";
 import {SafeERC20} from "../../lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 
-contract EurB is ERC20, AccessControl {
+contract EURB is ERC20, AccessControl {
     using SafeERC20 for IERC20;
     using FixedPointMathLib for uint256;
 
@@ -19,12 +19,10 @@ contract EurB is ERC20, AccessControl {
                                 CONSTANTS
     ////////////////////////////////////////////////////////////// */
 
-    // Define Admin Role.
-    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     // Define Minter Role.
-    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+    bytes32 internal constant MINTER_ROLE = keccak256("MINTER_ROLE");
     // Define Burner Role.
-    bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
+    bytes32 internal constant BURNER_ROLE = keccak256("BURNER_ROLE");
 
     // Max number of recursive calls for commissions.
     uint256 internal constant MAX_COMMISSIONS_DEPTH = 5;
@@ -47,19 +45,11 @@ contract EurB is ERC20, AccessControl {
     error RecoveryNotAllowed();
 
     /* //////////////////////////////////////////////////////////////
-                                EVENTS
-    ////////////////////////////////////////////////////////////// */
-
-    /* //////////////////////////////////////////////////////////////
-                                MODIFIERS
-    ////////////////////////////////////////////////////////////// */
-
-    /* //////////////////////////////////////////////////////////////
                                 CONSTRUCTOR
     ////////////////////////////////////////////////////////////// */
 
     constructor(address cardFactory_) ERC20("EuroBrussels", "EURB") {
-        _grantRole(ADMIN_ROLE, msg.sender);
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         cardFactory = ICardFactory(cardFactory_);
     }
 
@@ -71,11 +61,18 @@ contract EurB is ERC20, AccessControl {
      * @notice Mints an amount of tokens to a specific address.
      * @param to The address the tokens are minted for.
      * @param amount The amount of tokens to mint.
+     * @dev This function can only be called by addresses that are granted the minter role.
      */
     function mint(address to, uint256 amount) external onlyRole(MINTER_ROLE) {
         _mint(to, amount);
     }
 
+    /**
+     * @notice Mints an amount of tokens to a specific address.
+     * @param from The address the tokens are minted for.
+     * @param amount The amount of tokens to mint.
+     * @dev This function can only be called by addresses that are granted the burner role.
+     */
     function burn(address from, uint256 amount) external onlyRole(BURNER_ROLE) {
         _burn(from, amount);
     }
@@ -149,7 +146,7 @@ contract EurB is ERC20, AccessControl {
      * @notice This function will update the cardFactory address.
      * @param cardFactory_ The address of the new cardFactory.
      */
-    function setCardFactory(address cardFactory_) external onlyOwner {
+    function setCardFactory(address cardFactory_) external onlyRole(DEFAULT_ADMIN_ROLE) {
         cardFactory = ICardFactory(cardFactory_);
     }
 
@@ -162,7 +159,7 @@ contract EurB is ERC20, AccessControl {
      * @param asset The address of the asset to recover.
      * @param amount The amount of asset to recover.
      */
-    function recoverERC20(address asset, uint256 amount) external onlyOwner {
+    function recoverERC20(address asset, uint256 amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (asset == address(this)) revert RecoveryNotAllowed();
 
         IERC20(asset).safeTransfer(msg.sender, amount);

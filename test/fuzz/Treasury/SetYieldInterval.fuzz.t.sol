@@ -1,25 +1,24 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.22;
 
-import {EurB_Fuzz_Test} from "./_EurB.fuzz.t.sol";
+import {Treasury_Fuzz_Test} from "./_Treasury.fuzz.t.sol";
 
-import {EurB} from "../../../src/token/EurB.sol";
 import {FixedPointMathLib} from "../../../lib/solmate/src/utils/FixedPointMathLib.sol";
 import {IERC20} from "../../../lib/openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {ILocker} from "../../../src/lockers/interfaces/ILocker.sol";
-import {Ownable} from "../../../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
+import {TreasuryV1} from "../../../src/treasury/TreasuryV1.sol";
 
 /**
- * @notice Fuzz tests for the function "setYieldInterval" of contract "EurB".
+ * @notice Fuzz tests for the function "setYieldInterval" of contract "Treasury".
  */
-contract SetYieldInterval_EurB_Fuzz_Test is EurB_Fuzz_Test {
+contract SetYieldInterval_Treasury_Fuzz_Test is Treasury_Fuzz_Test {
     using FixedPointMathLib for uint256;
     /* ///////////////////////////////////////////////////////////////
                               SETUP
     /////////////////////////////////////////////////////////////// */
 
     function setUp() public override {
-        EurB_Fuzz_Test.setUp();
+        Treasury_Fuzz_Test.setUp();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -30,8 +29,9 @@ contract SetYieldInterval_EurB_Fuzz_Test is EurB_Fuzz_Test {
         vm.assume(random != users.dao);
 
         vm.startPrank(random);
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, random));
-        EURB.setYieldInterval(yieldInterval);
+        bytes memory expectedError = abi.encodeWithSelector(TreasuryV1.OnlyOwner.selector);
+        vm.expectRevert(expectedError);
+        treasury.setYieldInterval(yieldInterval);
         vm.stopPrank();
     }
 
@@ -41,8 +41,8 @@ contract SetYieldInterval_EurB_Fuzz_Test is EurB_Fuzz_Test {
         // When: Calling setYieldInterval.
         // Then: It should revert.
         vm.startPrank(users.dao);
-        vm.expectRevert(EurB.MaxYieldInterval.selector);
-        EURB.setYieldInterval(yieldInterval);
+        vm.expectRevert(TreasuryV1.MaxYieldInterval.selector);
+        treasury.setYieldInterval(yieldInterval);
         vm.stopPrank();
     }
 
@@ -52,9 +52,9 @@ contract SetYieldInterval_EurB_Fuzz_Test is EurB_Fuzz_Test {
         // When: Calling setWeights.
         // Then: It should revert.
         vm.startPrank(users.dao);
-        EURB.setYieldInterval(yieldInterval);
+        treasury.setYieldInterval(yieldInterval);
         vm.stopPrank();
 
-        assertEq(EURB.yieldInterval(), yieldInterval);
+        assertEq(treasury.yieldInterval(), yieldInterval);
     }
 }

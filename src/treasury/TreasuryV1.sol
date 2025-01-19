@@ -4,19 +4,32 @@ pragma solidity ^0.8.22;
 import {FixedPointMathLib} from "../../lib/solmate/src/utils/FixedPointMathLib.sol";
 import {IERC20} from "../../lib/openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {ILocker} from "../lockers/interfaces/ILocker.sol";
-import {Ownable} from "../../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "../../lib/solmate/src/utils/ReentrancyGuard.sol";
 import {SafeERC20} from "../../lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
-import {Storage} from "./Storage.sol";
+import {StorageV1} from "./StorageV1.sol";
 
-contract Treasury is Ownable, Storage {
+contract TreasuryV1 is StorageV1 {
     using SafeERC20 for IERC20;
     using FixedPointMathLib for uint256;
+
+    /* //////////////////////////////////////////////////////////////
+                                CONSTANTS
+    ////////////////////////////////////////////////////////////// */
+
+    // Storage slot with the address of the current implementation.
+    // This is the hardcoded keccak-256 hash of: "eip1967.proxy.implementation" subtracted by 1.
+    bytes32 internal constant IMPLEMENTATION_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
+
+    // Storage slot for the Liquidation implementation, a struct to avoid storage conflict when dealing with upgradeable contracts.
+    struct AddressSlot {
+        address value;
+    }
 
     /* //////////////////////////////////////////////////////////////
                                 ERRORS
     ////////////////////////////////////////////////////////////// */
 
+    error AlreadyInitialized();
     error IsNotALocker();
     error IsActiveLocker();
     error LengthMismatch();
@@ -24,6 +37,7 @@ contract Treasury is Ownable, Storage {
     error MaxRatio();
     error MaxYieldInterval();
     error MaxYieldLockers();
+    error OnlyOwner();
     error RecoveryNotAllowed();
     error SyncIntervalNotMet();
     error WeightsNotValid();
@@ -45,13 +59,16 @@ contract Treasury is Ownable, Storage {
         locked = 1;
     }
 
+    modifier onlyOwner() {
+        if (msg.sender != owner) revert OnlyOwner();
+        _;
+    }
+
     /* //////////////////////////////////////////////////////////////
                                 CONSTRUCTOR
     ////////////////////////////////////////////////////////////// */
 
-    constructor(address eurE) Ownable(msg.sender) {
-        EURE = eurE;
-    }
+    constructor() {}
 
     /* //////////////////////////////////////////////////////////////
                          YIELD LOCKERS LOGIC
@@ -61,7 +78,9 @@ contract Treasury is Ownable, Storage {
      * @notice Synchronizes all yield lockers by adjusting balances based on weights and idle ratio.
      */
     function syncAll() external nonReentrant {
-        if (block.timestamp < lastSyncTime + 1 days) revert SyncIntervalNotMet();
+        if (msg.sender != owner) {
+            if (block.timestamp < lastSyncTime + 1 days) revert SyncIntervalNotMet();
+        }
         lastSyncTime = block.timestamp;
 
         // Cache values.
@@ -283,6 +302,53 @@ contract Treasury is Ownable, Storage {
 
         // Increase claimable yield.
         availableYield += yield;
+    }
+
+    /* ///////////////////////////////////////////////////////////////
+                          PROXY MANAGEMENT
+    /////////////////////////////////////////////////////////////// */
+
+    /**
+     * @notice Initiates the Treasury contract.
+     */
+    function initialize(address eurE) external {
+        if (EURE != address(0)) revert AlreadyInitialized();
+        locked = 1;
+        owner = msg.sender;
+        EURE = eurE;
+    }
+
+    /**
+     * @notice Upgrades the Liquidation version and stores a new address in the EIP1967 implementation slot.
+     * @param newImplementation The new contract address of the Liquidation implementation.
+     * @dev This function MUST be added to new Liquidation implementations.
+     */
+    function upgrade(address newImplementation) external onlyOwner {
+        // Store new parameters.
+        _getAddressSlot(IMPLEMENTATION_SLOT).value = newImplementation;
+    }
+
+    /**
+     * @notice Returns the "AddressSlot" with member "value" located at "slot".
+     * @param slot The slot where the address of the Logic contract is stored.
+     * @return r The address stored in slot.
+     */
+    function _getAddressSlot(bytes32 slot) internal pure returns (AddressSlot storage r) {
+        assembly {
+            r.slot := slot
+        }
+    }
+
+    /* ///////////////////////////////////////////////////////////////
+                        OWNERSHIP MANAGEMENT
+    /////////////////////////////////////////////////////////////// */
+
+    /**
+     * @notice Transfers ownership of the contract to a new address.
+     * @param owner_ The new owner address.
+     */
+    function transferOwnership(address owner_) external onlyOwner {
+        owner = owner_;
     }
 
     /* //////////////////////////////////////////////////////////////

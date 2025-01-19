@@ -19,9 +19,11 @@ contract LockerMock is AbstractLocker {
         IERC20(asset).transferFrom(msg.sender, address(this), amount);
     }
 
-    function withdraw(address asset, uint256 amount) external override onlyOwner {
+    function withdraw(address asset, uint256 amount) external override onlyOwner returns (uint256 withdrawn) {
         // Decrease amount deposited.
         totalDeposited -= amount;
+
+        withdrawn = amount;
 
         // Withdraw asset from pool to the owner.
         IERC20(asset).transfer(msg.sender, amount);

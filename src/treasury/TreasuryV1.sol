@@ -108,9 +108,9 @@ contract TreasuryV1 is StorageV1 {
 
             if (currentBalance > targetBalance) {
                 uint256 excess = currentBalance - targetBalance;
-                try ILocker(lockers[i]).withdraw(EURE, excess) {
+                try ILocker(lockers[i]).withdraw(EURE, excess) returns (uint256 withdrawn) {
                     // Add withdrawn amount to idle balance.
-                    currentIdle += excess;
+                    currentIdle += withdrawn;
                 } catch {}
             }
         }
@@ -192,7 +192,7 @@ contract TreasuryV1 is StorageV1 {
         // Ensure locker is empty before removal, if not do a fullWithdraw.
         if (ILocker(locker).getTotalValue(EURE) != 0) {
             (, uint256 yield) = ILocker(locker).fullWithdraw(EURE);
-            // Yield collected is minted to the treasury.
+            // Increment yield available
             availableYield += yield;
         }
 
@@ -276,13 +276,13 @@ contract TreasuryV1 is StorageV1 {
     function withdrawFromPrivateLocker(address locker, uint256 amount) external onlyOwner {
         if (isPrivateLocker[locker] == false) revert LockerNotPrivate();
 
-        if (amount > privateLockersSupply) {
+        uint256 withdrawn = ILocker(locker).withdraw(EURE, amount);
+
+        if (withdrawn > privateLockersSupply) {
             privateLockersSupply = 0;
         } else {
-            privateLockersSupply -= amount;
+            privateLockersSupply -= withdrawn;
         }
-
-        ILocker(locker).withdraw(EURE, amount);
     }
 
     /**

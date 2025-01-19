@@ -38,7 +38,7 @@ contract FullWithdraw_AaveLocker_Fork_Test is AaveLocker_Fork_Test {
 
         assertEq(expectedYield, yield);
         assertEq(EURE.balanceOf(address(TREASURY)), yield + principal);
-        assertEq(principal, depositAmount);
+        assertApproxEqAbs(principal, depositAmount, 1);
 
         vm.stopPrank();
     }

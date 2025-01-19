@@ -114,7 +114,7 @@ abstract contract Fuzz_Test is Base_Test {
             // Avoid duplicates
             vm.assume(exists[recipients[i]] == false);
             recipients_[i] = recipients[i];
-            exists[recipients[i]] == true;
+            exists[recipients[i]] = true;
         }
 
         vm.prank(users.dao);

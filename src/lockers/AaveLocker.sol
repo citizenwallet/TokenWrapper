@@ -41,12 +41,12 @@ contract AaveV3Locker is AbstractLocker {
         AAVE_POOL.supply(asset, amount, address(this), 0);
     }
 
-    function withdraw(address asset, uint256 amount) external override onlyOwner {
+    function withdraw(address asset, uint256 amount) external override onlyOwner returns (uint256 withdrawn) {
         // Decrease amount deposited.
         totalDeposited -= amount;
 
         // Withdraw asset from pool to the owner.
-        AAVE_POOL.withdraw(asset, amount, msg.sender);
+        withdrawn = AAVE_POOL.withdraw(asset, amount, msg.sender);
     }
 
     function collectYield(address asset) external override onlyOwner returns (uint256 yield) {

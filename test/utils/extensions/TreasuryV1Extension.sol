@@ -20,4 +20,8 @@ contract TreasuryV1Extension is TreasuryV1 {
     function getWeightsLength() public view returns (uint256 length) {
         length = lockersWeights.length;
     }
+
+    function setAvailableYield(uint256 yield) public {
+        availableYield = yield;
+    }
 }

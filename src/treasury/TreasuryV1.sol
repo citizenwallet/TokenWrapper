@@ -84,14 +84,8 @@ contract TreasuryV1 is StorageV1 {
     function claimYield(uint256 amount, address receiver) external onlyOwner {
         if (amount > availableYield) revert YieldTooLow();
 
-        if (amount == type(uint256).max) {
-            uint256 availableYield_ = availableYield;
-            availableYield = 0;
-            IERC20(EURE).safeTransfer(receiver, availableYield_);
-        } else {
-            availableYield -= amount;
-            IERC20(EURE).safeTransfer(receiver, amount);
-        }
+        availableYield -= amount;
+        IERC20(EURE).safeTransfer(receiver, amount);
     }
 
     /**

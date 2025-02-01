@@ -353,6 +353,14 @@ contract TreasuryV1 is StorageV1 {
         }
     }
 
+    /**
+     * @notice Returns the current implementation address stored in the EIP-1967 slot.
+     * @return implementation The address of the current implementation.
+     */
+    function getImplementation() external view returns (address implementation) {
+        return _getAddressSlot(IMPLEMENTATION_SLOT).value;
+    }
+
     /* ///////////////////////////////////////////////////////////////
                         OWNERSHIP MANAGEMENT
     /////////////////////////////////////////////////////////////// */

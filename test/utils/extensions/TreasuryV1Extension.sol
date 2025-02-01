@@ -24,4 +24,9 @@ contract TreasuryV1Extension is TreasuryV1 {
     function setAvailableYield(uint256 yield) public {
         availableYield = yield;
     }
+
+    // Function added to check that when upgrading proxy it does not revert.
+    function setNewOwner(address) external {
+        revert();
+    }
 }

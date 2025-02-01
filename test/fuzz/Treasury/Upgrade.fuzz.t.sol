@@ -25,7 +25,7 @@ contract Upgrade_Treasury_Fuzz_Test is Treasury_Fuzz_Test {
     /*//////////////////////////////////////////////////////////////
                               TESTS
     //////////////////////////////////////////////////////////////*/
-    function testFuzz_Revert_upgrade() public {
+    function testFuzz_Revert_upgrade_NotOwner() public {
         // Given : Deploy new Treasury logic
         TreasuryV2Mock treasuryV2 = new TreasuryV2Mock();
 

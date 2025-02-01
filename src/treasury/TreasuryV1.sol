@@ -224,7 +224,6 @@ contract TreasuryV1 is StorageV1 {
      * @notice Sets the weights for yield lockers.
      * @param newLockersWeights The new weights for each locker.
      */
-    // Note : Double check no issue if idle set to max vs lockers
     function setWeights(uint256[] memory newLockersWeights) external onlyOwner {
         if (newLockersWeights.length != yieldLockers.length) revert LengthMismatch();
         uint256 totalLockerWeights;
@@ -384,7 +383,6 @@ contract TreasuryV1 is StorageV1 {
      */
     function recoverERC20(address asset, uint256 amount) external onlyOwner {
         if (asset == EURE) revert RecoveryNotAllowed();
-        if (asset == address(this)) revert RecoveryNotAllowed();
 
         IERC20(asset).safeTransfer(msg.sender, amount);
     }
